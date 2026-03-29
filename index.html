@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+  <meta name="theme-color" content="#0072b2">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="mimemo">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+  <title>mimemo</title>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --b1:#0072b2;--b2:#0ba2dd;--coral:#e62044;
+      --text:#1a2535;--muted:#8fa0b0;--bdr:#e8eef4;
+      --footer:136px; /* total footer height: wave + water */
+    }
+    html,body{height:100%;overflow:hidden;}
+    body{font-family:'Roboto',sans-serif;color:var(--text);background:#fff;
+      height:100dvh;-webkit-font-smoothing:antialiased;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;-webkit-user-select:none;}
+
+    /* ── SPLASH ────────────────────────────────────────── */
+    #splash{position:fixed;inset:0;z-index:9999;
+      background:linear-gradient(170deg,var(--b2),var(--b1));
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+      transition:opacity .6s ease;}
+    #splash.out{opacity:0;pointer-events:none;}
+    .spl-ring{width:112px;height:112px;animation:popIn .5s cubic-bezier(.34,1.56,.64,1) both;}
+    .spl-wm{height:24px;animation:fadeUp .55s .25s ease both;}
+    @keyframes popIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── APP SHELL ─────────────────────────────────────── */
+    #app{display:none;position:fixed;inset:0;flex-direction:column;}
+    #app.ready{display:flex;}
+
+    /* All views: white, content doesn't go under footer */
+    .view{display:none;flex:1;flex-direction:column;background:#fff;
+      overflow:hidden;padding-bottom:var(--footer);}
+    .view.active{display:flex;}
+
+    /* ══ HOME / GRABAR ════════════════════════════════════
+       White. icon_mimemo (circles+M) small top-center.
+       Tagline coral. rec_button big (membrane effect). label.
+    ════════════════════════════════════════════════════ */
+    #vGrabar{align-items:center;justify-content:center;position:relative;gap:0;}
+    .g-gear{position:absolute;top:max(env(safe-area-inset-top,16px),16px);right:18px;
+      background:none;border:none;cursor:pointer;color:var(--muted);
+      font-size:22px;padding:8px;border-radius:50%;}
+    .g-gear:active{background:var(--bdr);}
+
+    /* icon_mimemo: circles + M white — sits above tagline */
+    .g-icon{width:60px;height:60px;margin-bottom:12px;
+      margin-top:calc(max(env(safe-area-inset-top,16px),16px) + 44px);}
+
+    .g-tagline{font-size:22px;font-weight:700;color:var(--coral);
+      text-align:center;line-height:1.25;margin-bottom:30px;}
+
+    /* rec_button container — position:relative so circles can animate */
+    .rec-wrap{position:relative;width:160px;height:160px;
+      cursor:pointer;margin-bottom:18px;flex-shrink:0;}
+    .rec-wrap:active{opacity:.88;}
+
+    /* Each circle is absolutely positioned, centred, animates independently */
+    .rec-wrap svg{position:absolute;top:0;left:0;width:160px;height:160px;}
+    /* The 5 circles inside the SVG get their own transform-origin=center */
+    /* We'll animate via JS by setting inline style transform on each <circle> */
+
+    /* Ripple rings that expand outward while recording */
+    .ripple{position:absolute;top:50%;left:50%;
+      width:160px;height:160px;border-radius:50%;
+      border:2px solid rgba(0,114,178,.28);
+      transform:translate(-50%,-50%);
+      opacity:0;pointer-events:none;}
+    .ripple:nth-child(1){animation-delay:0s;}
+    .ripple:nth-child(2){animation-delay:.6s;}
+    .ripple:nth-child(3){animation-delay:1.2s;}
+    .recording .ripple{animation:ripOut 2s ease-out infinite;}
+    @keyframes ripOut{0%{transform:translate(-50%,-50%) scale(1);opacity:.5}
+      100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}}
+
+    .g-lbl{font-size:13px;font-weight:400;color:var(--muted);}
+    .txbox{margin-top:14px;background:#f5f9fc;border:1px solid var(--bdr);
+      border-radius:12px;padding:10px 16px;font-size:14px;font-style:italic;
+      color:var(--text);max-width:300px;width:100%;
+      text-align:center;display:none;line-height:1.5;}
+    .txbox.on{display:block;}
+    .api-ban{display:flex;align-items:center;gap:8px;padding:10px 14px;
+      margin-top:12px;background:#f5f9fc;border:1px solid var(--bdr);
+      border-radius:10px;font-size:13px;font-weight:500;color:var(--b1);
+      cursor:pointer;max-width:300px;width:100%;}
+    .api-ban i{font-size:15px;flex-shrink:0;}
+    .api-ban.hidden{display:none;}
+
+    /* ══ MIS IDEAS ════════════════════════════════════════
+       White. Big "mis ideas" in blue. Flat folder list.
+    ════════════════════════════════════════════════════ */
+    #vIdeas{background:#fff;}
+    .ih{display:flex;align-items:center;justify-content:space-between;
+      padding:24px 24px 16px;flex-shrink:0;}
+    .ih-t{font-size:32px;font-weight:700;color:var(--b1);letter-spacing:-.5px;}
+    .exp-btn{background:none;border:none;cursor:pointer;color:var(--muted);
+      font-size:20px;padding:8px;border-radius:50%;}
+    .exp-btn:active{background:var(--bdr);}
+    .folders-list{flex:1;overflow-y:auto;padding:4px 24px 8px;}
+    .folder-row{margin-bottom:20px;}
+    .folder-hd{display:flex;align-items:center;gap:14px;cursor:pointer;padding:2px 0;}
+    .folder-hd:active{opacity:.65;}
+    .fsvg{width:32px;height:26px;flex-shrink:0;}
+    .folder-name{font-size:20px;font-weight:700;color:var(--coral);}
+    .folder-count{font-size:15px;font-weight:400;color:var(--coral);opacity:.6;margin-left:2px;}
+    .folder-items{display:none;padding:8px 0 0 46px;}
+    .folder-row.open .folder-items{display:block;}
+    .idea-item{font-size:14px;color:var(--muted);padding:4px 0;cursor:pointer;line-height:1.4;}
+    .idea-item::before{content:"· ";color:var(--muted);}
+    .idea-item:active{color:var(--text);}
+    .folder-empty{font-size:13px;color:var(--muted);padding:4px 0 0 46px;font-style:italic;}
+
+    /* ══ BUSCAR ═══════════════════════════════════════════ */
+    #vBuscar{background:#fff;}
+    .bh{padding:24px 24px 14px;flex-shrink:0;}
+    .bh-t{font-size:32px;font-weight:700;color:var(--b1);margin-bottom:16px;letter-spacing:-.5px;}
+    .sbox{display:flex;align-items:center;gap:10px;background:#f5f9fc;
+      border:1.5px solid var(--bdr);border-radius:12px;padding:0 14px;}
+    .sbox:focus-within{border-color:var(--b2);}
+    .sbox i{font-size:18px;color:var(--muted);}
+    .sinp{flex:1;border:none;background:none;padding:13px 0;font-size:15px;
+      font-family:'Roboto',sans-serif;color:var(--text);outline:none;}
+    .sinp::placeholder{color:var(--muted);}
+    .sx{background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);font-size:17px;display:none;}
+    .sx.on{display:block;}
+    .sres{flex:1;overflow-y:auto;padding:8px 24px 4px;}
+    .shint{padding:48px 0;text-align:center;color:var(--muted);font-size:14px;}
+    .sc{padding:14px 0;border-bottom:1px solid var(--bdr);cursor:pointer;}
+    .sc:last-child{border-bottom:none;}
+    .sc:active{opacity:.6;}
+    .sc-t{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px;}
+    .sc-s{font-size:13px;color:var(--muted);line-height:1.4;margin-bottom:6px;}
+    .sc-ft{display:flex;align-items:center;justify-content:space-between;}
+    .sc-cat{font-size:11px;color:var(--coral);}
+    .sc-d{font-size:11px;color:var(--muted);}
+
+    /* ══ SINGLE IDEA ══════════════════════════════════════
+       Same sheet used for detail overlay.
+       Top: folder icon + category in coral. Title bold.
+       Text body. Then foto/audio/compartir links.
+    ════════════════════════════════════════════════════ */
+
+    /* ══ WATER FOOTER ════════════════════════════════════
+       Canvas draws one organic wave then solid blue fill.
+       Home nav: only "mis ideas" centered.
+       Inner nav: "mis ideas" left + "buscar" right.
+    ════════════════════════════════════════════════════ */
+    #waterFoot{
+      position:fixed;bottom:0;left:0;right:0;
+      height:calc(var(--footer) + env(safe-area-inset-bottom,0px));
+      z-index:40;
+    }
+    #waveCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
+
+    /* Nav sits on top of the canvas (pointer-events restored) */
+    .water-nav{
+      position:absolute;bottom:0;left:0;right:0;
+      height:calc(80px + env(safe-area-inset-bottom,0px));
+      display:flex;align-items:center;justify-content:space-around;
+      padding-bottom:env(safe-area-inset-bottom,0px);
+    }
+    .nt{display:flex;flex-direction:column;align-items:center;gap:4px;
+      cursor:pointer;padding:6px 28px;border:none;background:none;
+      color:rgba(255,255,255,.5);font-size:11px;font-weight:500;
+      font-family:'Roboto',sans-serif;text-transform:lowercase;
+      transition:color .2s;}
+    .nt i{font-size:26px;transition:transform .18s;display:block;}
+    .nt.active{color:#fff;}
+    .nt.active i{transform:scale(1.1);}
+    .nt:active i{transform:scale(.82);}
+
+    /* ══ OVERLAYS / SHEETS ═══════════════════════════════ */
+    .ov{position:fixed;inset:0;background:rgba(10,18,30,.5);z-index:300;
+      display:none;align-items:flex-end;backdrop-filter:blur(3px);}
+    .ov.open{display:flex;}
+    .sh{background:#fff;border-radius:24px 24px 0 0;width:100%;
+      max-height:92dvh;overflow-y:auto;
+      padding:14px 24px calc(28px + env(safe-area-inset-bottom,0px));
+      animation:shUp .27s cubic-bezier(.32,.72,0,1);}
+    @keyframes shUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    .hdl{width:36px;height:4px;background:var(--bdr);border-radius:99px;margin:0 auto 20px;}
+
+    /* Detail sheet — matches single page mockup */
+    .d-cat-hdr{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+    .d-cat-hdr svg{width:30px;height:24px;flex-shrink:0;}
+    .d-cat-name{font-size:18px;font-weight:700;color:var(--coral);}
+    .d-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.35;}
+    .d-body-text{font-size:14px;line-height:1.7;color:var(--text);margin-bottom:20px;}
+    /* Sections */
+    .d-sec{margin-bottom:14px;}
+    .d-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+      color:var(--muted);margin-bottom:3px;}
+    .d-body{font-size:14px;line-height:1.65;color:var(--text);}
+    .d-div{height:1px;background:var(--bdr);margin:14px 0;}
+    /* Action links like mockup: (+) foto  (+) audio  share compartir */
+    .d-actions{margin-top:6px;}
+    .d-act{display:flex;align-items:center;gap:10px;padding:9px 0;
+      cursor:pointer;border:none;background:none;
+      font-size:15px;font-weight:400;color:var(--coral);
+      font-family:'Roboto',sans-serif;width:100%;text-align:left;}
+    .d-act:active{opacity:.6;}
+    .d-act i{font-size:20px;}
+    /* Original transcript toggle */
+    .dotg{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;
+      color:var(--muted);text-transform:uppercase;letter-spacing:.6px;
+      cursor:pointer;padding:8px 0 4px;}
+    .dotg i.ti{transition:transform .2s;margin-left:auto;}
+    .dotg.open i.ti{transform:rotate(180deg);}
+    .dott{display:none;font-size:13px;color:var(--muted);font-style:italic;
+      line-height:1.6;padding:8px 12px;background:#f5f9fc;border-radius:10px;margin-top:4px;}
+    .dott.on{display:block;}
+    /* Edit / delete */
+    .d-mgmt{display:flex;gap:8px;margin-top:16px;}
+    .btn{display:flex;align-items:center;justify-content:center;gap:6px;
+      padding:12px 16px;border-radius:12px;font-size:14px;font-weight:700;
+      font-family:'Roboto',sans-serif;cursor:pointer;border:none;transition:opacity .15s;}
+    .btn:active{opacity:.75;}
+    .btn i{font-size:15px;}
+    .bb{background:var(--b1);color:#fff;flex:2;}
+    .bg2{background:#f5f9fc;color:var(--text);border:1.5px solid var(--bdr);flex:1;}
+    .br{background:#fdf2f4;color:var(--coral);border:1.5px solid #f5c0cb;}
+
+    /* Share */
+    .so{display:flex;align-items:center;gap:14px;padding:13px 0;
+      border-bottom:1px solid var(--bdr);cursor:pointer;}
+    .so:last-child{border-bottom:none;}
+    .so:active{opacity:.6;}
+    .soi{width:40px;height:40px;border-radius:10px;display:flex;
+      align-items:center;justify-content:center;flex-shrink:0;}
+    .soi i{font-size:20px;color:#fff;}
+    .som{font-size:15px;font-weight:700;}
+    .sos{font-size:12px;color:var(--muted);}
+
+    /* Edit form */
+    .el{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.6px;color:var(--muted);margin:14px 0 5px;}
+    .ei,.eta,.ese{width:100%;padding:11px 13px;border-radius:10px;
+      border:1.5px solid var(--bdr);font-size:14px;font-family:'Roboto',sans-serif;
+      background:#f5f9fc;color:var(--text);outline:none;transition:border-color .2s;}
+    .ei:focus,.eta:focus,.ese:focus{border-color:var(--b2);}
+    .eta{resize:vertical;line-height:1.55;}
+    .cr{display:flex;gap:6px;}
+    .cp{flex:1;padding:9px 4px;border-radius:8px;border:1.5px solid var(--bdr);
+      background:#f5f9fc;text-align:center;cursor:pointer;font-size:14px;transition:all .15s;}
+    .cp.on{border-color:var(--b2);background:#d6ecf8;}
+
+    /* Settings */
+    .st2{font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px;}
+    .sd2{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.6;}
+    .sl2{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+      letter-spacing:.6px;color:var(--muted);margin-bottom:6px;}
+    .si2{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid var(--bdr);
+      font-size:14px;background:#f5f9fc;color:var(--text);font-family:monospace;
+      outline:none;margin-bottom:14px;transition:border-color .2s;}
+    .si2:focus{border-color:var(--b2);}
+    .ss2{width:100%;padding:14px;border-radius:12px;border:none;background:var(--b1);
+      color:#fff;font-size:15px;font-weight:700;font-family:'Roboto',sans-serif;cursor:pointer;}
+    .sdiv2{height:1px;background:var(--bdr);margin:18px 0;}
+    .sln2{display:block;text-align:center;margin-top:12px;font-size:13px;
+      color:var(--b1);text-decoration:none;font-weight:500;}
+    .ser2{display:flex;gap:8px;margin-top:4px;}
+    .seb2{flex:1;padding:12px;border-radius:10px;border:1.5px solid var(--bdr);
+      background:#f5f9fc;font-size:13px;font-weight:700;font-family:'Roboto',sans-serif;
+      color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+    .seb2 i{font-size:15px;color:var(--muted);}
+
+    /* Export */
+    .eo{display:flex;align-items:center;gap:14px;padding:13px 0;
+      border-bottom:1px solid var(--bdr);cursor:pointer;}
+    .eo:last-child{border-bottom:none;}
+    .eo:active{opacity:.6;}
+    .eoi{width:40px;height:40px;border-radius:10px;display:flex;
+      align-items:center;justify-content:center;flex-shrink:0;}
+    .eoi i{font-size:20px;color:#fff;}
+
+    /* Toast */
+    .toast{position:fixed;bottom:calc(var(--footer) + 16px);left:50%;
+      transform:translateX(-50%) translateY(8px);
+      background:var(--text);color:#fff;padding:9px 22px;border-radius:99px;
+      font-size:13px;font-weight:500;z-index:9000;opacity:0;pointer-events:none;
+      white-space:nowrap;transition:opacity .3s,transform .3s;}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  </style>
+</head>
+<body>
+
+<!-- SPLASH: blue gradient + concentric rings + wordmark -->
+<div id="splash">
+  <svg class="spl-ring" viewBox="0 0 116 116" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="58" cy="58" r="56"   fill="rgba(255,255,255,.10)"/>
+    <circle cx="58" cy="58" r="44.8" fill="rgba(255,255,255,.17)"/>
+    <circle cx="58" cy="58" r="30.6" fill="rgba(255,255,255,.25)"/>
+    <circle cx="58" cy="58" r="19.1" fill="rgba(255,255,255,.34)"/>
+    <circle cx="58" cy="58" r="9.1"  fill="rgba(255,255,255,.46)"/>
+  </svg>
+  <svg class="spl-wm" viewBox="0 0 224.39 39" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#fff" d="M64.7,9.29c2.44-1.47,2.73-4.81,1.27-7.07C65.1.88,63.75,0,62.13,0c-1.65,0-3.49,1.28-3.75,2.97-.11.71-.12,1.35.11,1.99-.1.32-.17.66-.19,1.01-.17,3.31,3.87,4.84,6.4,3.32Z"/>
+    <path fill="#fff" d="M223.93,15.94c.91-1.34.37-2.94-.53-4.07l-.14-.18c-1.13-1.42-3.57-1.18-4.75,0-.37.37-.62.77-.77,1.19-.07.06-.13.13-.2.19-3.11-2.15-6.85-3.26-10.48-2.87-.71-.09-1.34.04-1.87.32-1.98.51-3.89,1.5-5.6,3.04-.41.38-.8.77-1.16,1.18-.13.09-.27.18-.4.29-2.83,2.56-4.61,5.57-6.19,9.01-.91,1.97-2.31,7.82-4.98,5.48-1.74-1.53-2.36-5.4-3.07-7.54-.91-2.75-1.87-5.44-3.7-7.74-3.75-4.7-9.7-4.35-12.87.77-.2.33-.4.67-.58,1.02-1.86-4.19-4.78-7.07-9.94-5.79-3.57.88-5.91,2.81-7.41,5.3-.05-.4-.11-.81-.15-1.21-.35-3.48-5.79-4.9-6.6-.89-1.13,5.55-2.36,13.09-7.75,15.95-2.39,1.27-5.02.88-7.19-.45,1.58-2.1,3-4.2,4.27-5.77,3.3-4.06,5.22-10.95-.97-13.43-5.21-2.09-10.86.78-13.27,5.52-2.15,4.23-1.47,9.41.86,13.53-.78.88-1.8,1.78-2.83,1.44-.84-.28-1.2-2.94-1.38-3.6-1.85-6.95-3.98-19.89-14.36-14.7-1.8.9-3.24,2.24-4.36,3.84-2.12-3.91-5.16-6.52-9.58-5.08-2.36.76-4.15,2.32-5.49,4.32-.25-1.15-.5-2.31-.77-3.46-.99-4.21-7.47-2.43-6.48,1.79,1.22,5.2,2.26,10.44,3.37,15.66-.6,1.23-1.6,2.41-2.54,2.87-3.67,1.84-6.06-1.62-7.31-4.48-1.38-3.17-2.42-7.02-2.28-10.49.14-3.57-4.49-4.25-6.26-1.7-2.4,3.44-3.97,7.32-5.99,10.97-.65-2.89-1.13-5.36-2.15-8.47-1.31-3.97-3.95-7.65-8.54-7.7-3.15-.03-5.6,1.3-7.52,3.36-1.47-3.05-4.03-5.09-8.39-4.89-3.94.18-6.89,2.21-9.1,5.14-.31-2.48-.94-4.9-2.55-6.51-2.79-2.79-7.28-1.42-9.52.26-2.14,1.6-3.18,2.72-4.31,6.49-1.24,4.15,5.29.19,7.17-.99.31-.2,1.63-1.06,1.98-.82.6.41.62,3.83.68,4.38.68,5.83.94,11.7.85,17.57-.02,4.33,6.66,4.33,6.72,0,.02-3.73.58-7.35,1.8-10.88.95-2.77,2.49-6.81,5.6-7.75,3.55-1.08,4.3,3.63,4.21,8.43-.21,3.87-.59,6.87-.9,9.46-.43,3.55,6.06,4.82,6.6.89.31-2.25.99-10.85,1.18-11.71.94-4.26,3.06-6.89,6.01-5.54,1.96.9,2.55,6.01,2.97,7.77.92,3.83,1.39,6.24,2.38,9.94.38,1.42,1.77,2.47,3.24,2.47.26,0,.5-.02.74-.06.79.03,1.61-.29,2.3-1.12.02-.02.03-.04.05-.06.32-.33.61-.71.87-1.14,1.83-2.43,3.27-5.06,4.65-7.71,1.56,4.81,4.34,9.26,8.47,11.14,3.78,1.72,8,.79,11.19-1.59,2.09,1.79,6.3-.02,5.48-3.48-.7-2.91-1.06-15.37,3.6-14.94,2.27.21,3.71,5.02,4.6,9.27.09,2.05.45,4.03,1.05,5.79,1.41,4.12,7.28,2.46,6.48-1.79-.21-1.1-.47-2.57-.81-4.2-.14-2.34.22-4.76,1.28-6.72,1.49-2.74,3.36-3.13,4.99-.43.94,1.57,1.14,4.3,1.61,6.07,1.5,5.73,3.4,12.3,10.89,10.77,1.8-.37,3.49-1.44,5.07-2.87,4.74,3.43,9.72,3.97,15.02,1.19,3.18-1.66,5.36-4.26,6.94-7.29.69,2.45,1.47,4.88,2.29,7.3,1.14,3.36,7.04,3.09,6.6-.89-.4-3.68-2.7-16.99,3.82-17.39,4.42-.27,5.55,13.94,6.67,17.14,1.16,3.33,7.05,3.11,6.6-.89-.33-2.95-.25-5.99.18-8.93.42-2.83,1.33-8.25,4.55-4.32,3.17,3.87,2.59,10.1,6.08,14.08,2.79,3.19,8.21,4.33,11.45,1.08,1.36-1.36,2.33-2.96,3.17-4.64.91,1.65,2.2,3.15,3.91,4.33,7.46,5.18,18.05,1.21,21.27-7.15,1.02-2.64,1.4-6.04.4-8.84.02-.2.02-.41-.02-.62.12-.08.24-.17.36-.27.61-.51,1.04-1.32,1.48-1.98ZM125.76,16.13c.34-.15,2.14-.53,2.44-.21.86.92-3.66,5.46-4.42,6.39-.18.22-.35.44-.53.66-.14-.62-.22-1.26-.2-1.91.05-1.9.88-4.12,2.7-4.94ZM215.76,24.08c-1,4.67-6.78,8.04-11.07,5.49-3.82-2.28-4.07-7.32-1.14-10.47.99-1.07,2.21-1.73,3.51-2.04.78.17,1.62.36,2.46.59.31,1.9,1.63,3.21,3.6,3.76.83.23,1.68.28,2.51.18.26.71.33,1.53.12,2.5Z"/>
+  </svg>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+  <!-- ══ HOME / GRABAR ══════════════════════════════════ -->
+  <div class="view active" id="vGrabar">
+    <button class="g-gear" onclick="openOv('stOv')"><i class="ph ph-gear-six"></i></button>
+
+    <!-- icon_mimemo.svg: concentric circles + M white letterform -->
+    <svg class="g-icon" viewBox="0 0 105.18 105.18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <defs>
+        <linearGradient id="gi0" x1="52.59" y1="105.18" x2="52.59" y2="0" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#0072b2"/><stop offset="1" stop-color="#0ba2dd"/>
+        </linearGradient>
+        <linearGradient id="gi1" x1="10.37" y1="52.59" x2="94.81" y2="52.59" xlink:href="#gi0"/>
+        <linearGradient id="gi2" x1="23.8"  y1="52.59" x2="81.38" y2="52.59" xlink:href="#gi0"/>
+        <linearGradient id="gi3" x1="34.54" y1="52.59" x2="70.64" y2="52.59" xlink:href="#gi0"/>
+        <linearGradient id="gi4" x1="44.04" y1="52.59" x2="61.14" y2="52.59" xlink:href="#gi0"/>
+      </defs>
+      <circle cx="52.59" cy="52.59" r="52.59" fill="url(#gi0)"/>
+      <circle cx="52.59" cy="52.59" r="42.22" fill="url(#gi1)"/>
+      <circle cx="52.59" cy="52.59" r="28.79" fill="url(#gi2)"/>
+      <circle cx="52.59" cy="52.59" r="18.05" fill="url(#gi3)"/>
+      <circle cx="52.59" cy="52.59" r="8.55"  fill="url(#gi4)"/>
+      <path fill="#fff" d="M75.7,58.31c-1-3.96-1.4-6.81-2.67-10.67-1.28-3.89-3.88-7.51-8.38-7.55-3.09-.03-5.5,1.27-7.38,3.3-1.44-2.99-3.95-4.99-8.23-4.8-3.86.17-6.76,2.17-8.93,5.04-.31-2.43-.92-4.81-2.5-6.39-2.73-2.74-7.14-1.4-9.35.26s-3.12,2.67-4.23,6.37c-1.22,4.08,5.19.18,7.03-.98.31-.19,1.6-1.04,1.95-.8.59.4.61,3.76.67,4.3.67,5.73.92,11.48.83,17.24-.02,4.25,6.53,4.25,6.6,0,.02-3.66.57-7.21,1.76-10.68.94-2.72,2.44-6.68,5.49-7.61,3.49-1.06,4.22,3.56,4.13,8.27-.21,3.8-.58,6.74-.89,9.28-.42,3.49,5.95,4.73,6.48.88.31-2.21.97-10.65,1.16-11.49.92-4.18,3-6.77,5.89-5.44,1.93.89,2.5,5.9,2.92,7.63.91,3.76,1.36,6.13,2.34,9.75.38,1.4,1.74,2.42,3.18,2.42,3.29,0,4.19-2.74,5.52-5.83,1.62-3.77-1.6-6.01-3.4-2.52Z"/>
+    </svg>
+
+    <p class="g-tagline">mimemo listo<br>para recibir ideas</p>
+
+    <!-- rec_button_mimemo.svg: 5 concentric circles, vibrate with voice -->
+    <div class="rec-wrap" id="recWrap" onclick="toggleRec()">
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <!-- SVG with individually addressable circles for membrane effect -->
+      <svg id="recSvg" viewBox="0 0 105.18 105.18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <defs>
+          <linearGradient id="gr0" x1="52.59" y1="105.18" x2="52.59" y2="0" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#0072b2"/><stop offset="1" stop-color="#0ba2dd"/>
+          </linearGradient>
+          <linearGradient id="gr1" x1="10.37" y1="52.59" x2="94.81" y2="52.59" xlink:href="#gr0"/>
+          <linearGradient id="gr2" x1="23.8"  y1="52.59" x2="81.38" y2="52.59" xlink:href="#gr0"/>
+          <linearGradient id="gr3" x1="34.54" y1="52.59" x2="70.64" y2="52.59" xlink:href="#gr0"/>
+          <linearGradient id="gr4" x1="44.04" y1="52.59" x2="61.14" y2="52.59" xlink:href="#gr0"/>
+        </defs>
+        <!-- id each circle for JS animation -->
+        <circle id="rc0" cx="52.59" cy="52.59" r="52.59" fill="url(#gr0)" style="transform-origin:52.59px 52.59px"/>
+        <circle id="rc1" cx="52.59" cy="52.59" r="42.22" fill="url(#gr1)" style="transform-origin:52.59px 52.59px"/>
+        <circle id="rc2" cx="52.59" cy="52.59" r="28.79" fill="url(#gr2)" style="transform-origin:52.59px 52.59px"/>
+        <circle id="rc3" cx="52.59" cy="52.59" r="18.05" fill="url(#gr3)" style="transform-origin:52.59px 52.59px"/>
+        <circle id="rc4" cx="52.59" cy="52.59" r="8.55"  fill="url(#gr4)" style="transform-origin:52.59px 52.59px"/>
+      </svg>
+    </div>
+
+    <span class="g-lbl" id="recLbl">grabar idea</span>
+    <div class="txbox" id="txBox"></div>
+    <div class="api-ban hidden" id="apiBan" onclick="openOv('stOv')">
+      <i class="ph ph-key"></i><span>Configura tu API Key de Gemini</span>
+      <i class="ph ph-arrow-right" style="margin-left:auto"></i>
+    </div>
+  </div>
+
+  <!-- ══ MIS IDEAS ══════════════════════════════════════ -->
+  <div class="view" id="vIdeas">
+    <div class="ih">
+      <span class="ih-t">mis ideas</span>
+      <button class="exp-btn" onclick="openOv('expOv')"><i class="ph ph-export"></i></button>
+    </div>
+    <div class="folders-list" id="foldersList"></div>
+  </div>
+
+  <!-- ══ BUSCAR ════════════════════════════════════════ -->
+  <div class="view" id="vBuscar">
+    <div class="bh">
+      <div class="bh-t">buscar</div>
+      <div class="sbox">
+        <i class="ph ph-magnifying-glass"></i>
+        <input class="sinp" id="sinp" type="search" placeholder="busca entre tus ideas..." oninput="doSearch(this.value)">
+        <button class="sx" id="sx" onclick="clrSearch()"><i class="ph ph-x"></i></button>
+      </div>
+    </div>
+    <div class="sres" id="sres"><div class="shint">Empieza a escribir para buscar</div></div>
+  </div>
+
+  <!-- ══ WATER FOOTER ═══════════════════════════════════
+       Home nav: only "mis ideas" centered
+       Inner nav: "mis ideas" + "buscar"
+  ══════════════════════════════════════════════════ -->
+  <div id="waterFoot">
+    <canvas id="waveCanvas"></canvas>
+
+    <!-- HOME nav: single centered icon -->
+    <nav class="water-nav" id="navHome" style="justify-content:center;">
+      <button class="nt active" onclick="gv('ideas')">
+        <i class="ph ph-house"></i>mis ideas
+      </button>
+    </nav>
+
+    <!-- INNER nav: mis ideas + buscar -->
+    <nav class="water-nav" id="navInner" style="display:none;">
+      <button class="nt" id="tabI" onclick="gv('ideas')">
+        <i class="ph ph-house"></i>mis ideas
+      </button>
+      <button class="nt" id="tabB" onclick="gv('buscar')">
+        <i class="ph ph-magnifying-glass"></i>buscar
+      </button>
+    </nav>
+  </div>
+</div>
+
+<!-- ══ DETAIL OVERLAY ════════════════════════════════ -->
+<div class="ov" id="detOv" onclick="ovClick(event,'detOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <!-- Category header: folder icon + name -->
+    <div class="d-cat-hdr">
+      <svg viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/>
+      </svg>
+      <span class="d-cat-name" id="dCatName"></span>
+    </div>
+    <div class="d-title" id="dTitle"></div>
+    <!-- Main body text: summary -->
+    <div class="d-body-text" id="dBodyText"></div>
+    <!-- Sections -->
+    <div class="d-sec"><div class="d-lbl">Viabilidad y competencia</div><div class="d-body" id="dVia"></div></div>
+    <div class="d-div"></div>
+    <div class="d-sec"><div class="d-lbl">Monetizaci&#243;n posible</div><div class="d-body" id="dMon"></div></div>
+    <div class="d-div"></div>
+    <!-- Original transcript -->
+    <div class="dotg" id="dotg" onclick="togOrig()">
+      <i class="ph ph-waveform"></i>Idea original
+      <i class="ph ph-caret-down ti" style="margin-left:auto"></i>
+    </div>
+    <div class="dott" id="dOrig"></div>
+    <!-- Actions like mockup: (+) foto  (+) audio  share compartir -->
+    <div class="d-actions">
+      <button class="d-act" onclick="openShr()">
+        <i class="ph ph-share-network"></i>compartir
+      </button>
+    </div>
+    <div class="d-mgmt">
+      <button class="btn bg2" onclick="openEdit()"><i class="ph ph-pencil-simple"></i>Editar</button>
+      <button class="btn br"   onclick="delIdea()"><i class="ph ph-trash"></i>Borrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT OVERLAY -->
+<div class="ov" id="edOv" onclick="ovClick(event,'edOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:4px">Editar idea</h2>
+    <label class="el">T&#237;tulo</label><input class="ei" id="eT" type="text" maxlength="80">
+    <label class="el">Categor&#237;a</label>
+    <select class="ese" id="eCat">
+      <option value="musica">M&#250;sica</option>
+      <option value="app">Apps</option>
+      <option value="web">Web</option>
+      <option value="negocio">Negocios</option>
+      <option value="otro">Miscel&#225;nea</option>
+    </select>
+    <label class="el">Qu&#233; es</label><textarea class="eta" id="eS" rows="3"></textarea>
+    <label class="el">Viabilidad y competencia</label><textarea class="eta" id="eV" rows="3"></textarea>
+    <label class="el">Similar existente</label><textarea class="eta" id="eSim" rows="2"></textarea>
+    <label class="el">Monetizaci&#243;n</label><textarea class="eta" id="eM" rows="2"></textarea>
+    <label class="el">Puntuaci&#243;n (1-5)</label>
+    <div class="cr">
+      <div class="cp" data-v="1" onclick="pickC(1)">1</div>
+      <div class="cp" data-v="2" onclick="pickC(2)">2</div>
+      <div class="cp" data-v="3" onclick="pickC(3)">3</div>
+      <div class="cp" data-v="4" onclick="pickC(4)">4</div>
+      <div class="cp" data-v="5" onclick="pickC(5)">5</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn bg2" style="flex:1" onclick="closeOv('edOv')">Cancelar</button>
+      <button class="btn bb"  style="flex:2" onclick="saveEdit()"><i class="ph ph-check"></i>Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE OVERLAY -->
+<div class="ov" id="shrOv" onclick="ovClick(event,'shrOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:4px" id="shrT"></h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Comparte esta idea</p>
+    <div class="so" onclick="shrVia('whatsapp')"><div class="soi" style="background:#25D366"><i class="ph ph-whatsapp-logo"></i></div><div><div class="som">WhatsApp</div><div class="sos">Enviar por WhatsApp</div></div></div>
+    <div class="so" onclick="shrVia('email')"><div class="soi" style="background:var(--coral)"><i class="ph ph-envelope"></i></div><div><div class="som">Email</div><div class="sos">Enviar por correo</div></div></div>
+    <div class="so" onclick="shrVia('copy')"><div class="soi" style="background:var(--b1)"><i class="ph ph-copy"></i></div><div><div class="som">Copiar texto</div><div class="sos">Copiar al portapapeles</div></div></div>
+    <div class="so" id="ntvShr" style="display:none" onclick="shrVia('native')"><div class="soi" style="background:var(--muted)"><i class="ph ph-share-fat"></i></div><div><div class="som">M&#225;s opciones</div></div></div>
+  </div>
+</div>
+
+<!-- EXPORT OVERLAY -->
+<div class="ov" id="expOv" onclick="ovClick(event,'expOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:4px">Exportar ideas</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px" id="expCnt"></p>
+    <div class="eo" onclick="doExp('txt')"><div class="eoi" style="background:var(--b1)"><i class="ph ph-file-text"></i></div><div><div style="font-size:15px;font-weight:700">Exportar .txt</div><div style="font-size:12px;color:var(--muted)">Texto plano</div></div></div>
+    <div class="eo" onclick="doExp('json')"><div class="eoi" style="background:var(--muted)"><i class="ph ph-brackets-curly"></i></div><div><div style="font-size:15px;font-weight:700">Exportar .json</div><div style="font-size:12px;color:var(--muted)">Formato estructurado</div></div></div>
+  </div>
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div class="ov" id="stOv" onclick="ovClick(event,'stOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <div class="st2">Ajustes</div>
+    <div class="sd2"><strong>mimemo</strong> usa <strong>Google Gemini</strong> para analizar ideas. La API Key se guarda solo en tu dispositivo.</div>
+    <label class="sl2">API Key de Google Gemini</label>
+    <input type="password" class="si2" id="apiKI" placeholder="AIzaSy..." autocomplete="off" spellcheck="false">
+    <button class="ss2" onclick="saveSt()">Guardar ajustes</button>
+    <a class="sln2" href="https://aistudio.google.com/app/apikey" target="_blank">Consigue tu API Key gratis &#8594;</a>
+    <div class="sdiv2"></div>
+    <label class="sl2">Exportar ideas</label>
+    <div class="ser2">
+      <button class="seb2" onclick="doExp('txt')"><i class="ph ph-file-text"></i>.txt</button>
+      <button class="seb2" onclick="doExp('json')"><i class="ph ph-brackets-curly"></i>.json</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1', GM='gemini-1.5-flash';
+const CATS={
+  musica:{label:'m\u00fasica'},app:{label:'apps'},
+  web:{label:'web'},negocio:{label:'negocios'},otro:{label:'miscel\u00e1nea'}
+};
+let ideas=[], curId=null, editCoins=3;
+let isRec=false, isProc=false, txText='', recog=null;
+let waveT=0, gyro=0, curView='grabar';
+
+/* ── MEMBRANE VIBRATION (Web Audio API) ─────────────────
+   Each of the 5 circles gets its own frequency & phase.
+   Outer circles = bigger amplitude (like a real speaker cone).
+   Driven by microphone amplitude via AnalyserNode.
+────────────────────────────────────────────────────────── */
+let audioCtx=null, analyser=null, micStream=null;
+let membraneActive=false;
+// Frequency and phase offset for each circle (outermost=0, innermost=4)
+const FREQ  = [1.0, 1.35, 1.72, 2.1, 2.6];  // oscillation Hz
+const PHASE = [0,   0.8,  1.6,  2.4, 3.1];  // phase offset rad
+const AMP   = [0.06, 0.05, 0.04, 0.03, 0.02]; // max scale delta (outermost biggest)
+const circles = [
+  document.getElementById('rc0'),
+  document.getElementById('rc1'),
+  document.getElementById('rc2'),
+  document.getElementById('rc3'),
+  document.getElementById('rc4')
+];
+let memT=0, micLevel=0;
+
+async function startMembrane() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    micStream = stream;
+    audioCtx  = new (window.AudioContext||window.webkitAudioContext)();
+    analyser  = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    membraneActive = true;
+    animateMembrane();
+  } catch(e) {
+    // Permission denied — animate with idle oscillation only
+    membraneActive = true;
+    animateMembrane();
+  }
+}
+
+function stopMembrane() {
+  membraneActive = false;
+  if (micStream) { micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
+  if (audioCtx)  { audioCtx.close(); audioCtx=null; analyser=null; }
+  // Reset circles
+  circles.forEach(c=>{ if(c) c.style.transform='scale(1)'; });
+}
+
+function animateMembrane() {
+  if (!membraneActive) return;
+  // Get mic level (0-1)
+  if (analyser) {
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteTimeDomainData(buf);
+    let sum=0;
+    for (let i=0;i<buf.length;i++) { const v=(buf[i]-128)/128; sum+=v*v; }
+    micLevel = Math.sqrt(sum/buf.length); // RMS
+  } else {
+    // Idle: gentle pulse
+    micLevel = 0.08 + Math.sin(memT*2)*0.04;
+  }
+  memT += 0.016;
+  // Drive each circle
+  circles.forEach((c,i)=>{
+    if (!c) return;
+    // Mix: steady oscillation + mic level boost
+    const osc = Math.sin(memT * FREQ[i] * Math.PI * 2 + PHASE[i]);
+    const scale = 1 + osc * AMP[i] * (0.3 + micLevel * 8);
+    c.style.transform = 'scale('+scale.toFixed(4)+')';
+  });
+  requestAnimationFrame(animateMembrane);
+}
+
+/* ── WAVE CANVAS ─────────────────────────────────────── */
+const CVS=document.getElementById('waveCanvas');
+const CTX2=CVS.getContext('2d');
+function resizeCvs(){
+  CVS.width=window.innerWidth;
+  CVS.height=document.getElementById('waterFoot').offsetHeight;
+}
+function drawWave(){
+  const w=CVS.width, h=CVS.height;
+  if(!w||!h){requestAnimationFrame(drawWave);return;}
+  CTX2.clearRect(0,0,w,h);
+  // Single organic wave — crest at ~38% from top of footer canvas
+  const baseY=h*0.38;
+  function getY(x){
+    const nx=x/w;
+    const tilt=-gyro*16*(nx-0.5);
+    return baseY+tilt
+      +Math.sin(nx*Math.PI*2.0+waveT*0.85)*10
+      +Math.sin(nx*Math.PI*3.5+waveT*0.52+1.2)*5
+      +Math.sin(nx*Math.PI*1.2+waveT*1.3+2.4)*3;
+  }
+  const grad=CTX2.createLinearGradient(0,baseY-14,0,h);
+  grad.addColorStop(0,'#1a9fd4');
+  grad.addColorStop(0.25,'#0080bb');
+  grad.addColorStop(1,'#00538a');
+  CTX2.beginPath();
+  CTX2.moveTo(0,getY(0));
+  for(let x=2;x<=w;x+=2) CTX2.lineTo(x,getY(x));
+  CTX2.lineTo(w,h+2);CTX2.lineTo(0,h+2);CTX2.closePath();
+  CTX2.fillStyle=grad;CTX2.fill();
+  waveT+=0.018;
+  requestAnimationFrame(drawWave);
+}
+function setupGyro(){
+  window.addEventListener('deviceorientation',e=>{
+    if(e.gamma!==null) gyro=Math.max(-1,Math.min(1,e.gamma/35));
+  });
+}
+
+/* ── SPLASH ──────────────────────────────────────────── */
+function runSplash(){
+  setTimeout(()=>{
+    document.getElementById('splash').classList.add('out');
+    setTimeout(()=>{
+      document.getElementById('splash').style.display='none';
+      document.getElementById('app').classList.add('ready');
+    },680);
+  },2100);
+}
+
+/* ── VIEWS ───────────────────────────────────────────── */
+function gv(name){
+  if(curView===name)return;
+  curView=name;
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const map={grabar:'vGrabar',ideas:'vIdeas',buscar:'vBuscar'};
+  document.getElementById(map[name]).classList.add('active');
+  // Footer nav switching
+  const home=name==='grabar';
+  document.getElementById('navHome').style.display=home?'flex':'none';
+  document.getElementById('navInner').style.display=home?'none':'flex';
+  if(!home){
+    document.getElementById('tabI').classList.toggle('active',name==='ideas');
+    document.getElementById('tabB').classList.toggle('active',name==='buscar');
+  }
+  if(name==='buscar') setTimeout(()=>document.getElementById('sinp').focus(),220);
+  if(name==='ideas')  renderFolders();
+}
+
+/* ── SPEECH + MEMBRANE ───────────────────────────────── */
+function setupSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){document.getElementById('recLbl').textContent='Navegador no soporta grabaci\u00f3n';return;}
+  recog=new SR(); recog.continuous=true; recog.interimResults=true; recog.lang='es-ES';
+  recog.onresult=e=>{
+    let f='',i2='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      e.results[i].isFinal?(f+=t+' '):(i2+=t);
+    }
+    txText=f||i2;
+    const b=document.getElementById('txBox');
+    b.textContent='"'+txText.trim()+'"';b.classList.add('on');
+  };
+  recog.onerror=e=>{if(e.error==='not-allowed')toast('Necesitas dar permiso al micr\u00f3fono');stopRec();};
+  recog.onend=()=>{if(isRec)stopRec();};
+}
+
+function toggleRec(){if(isProc)return;isRec?stopRec():startRec();}
+
+function startRec(){
+  if(!recog)return;
+  txText='';
+  const b=document.getElementById('txBox');b.textContent='';b.classList.remove('on');
+  isRec=true;
+  try{recog.start();}catch(e){}
+  document.getElementById('recWrap').classList.add('recording');
+  document.getElementById('recLbl').textContent='toca para detener';
+  startMembrane(); // start membrane vibration with mic
+}
+
+function stopRec(){
+  isRec=false;
+  try{recog.stop();}catch(e){}
+  document.getElementById('recWrap').classList.remove('recording');
+  stopMembrane();
+  if(txText.trim().length>4) analyzeIdea(txText.trim());
+  else{resetRec();document.getElementById('txBox').classList.remove('on');}
+}
+function resetRec(){
+  isProc=false;
+  document.getElementById('recLbl').textContent='grabar idea';
+}
+
+/* ── GEMINI ──────────────────────────────────────────── */
+async function analyzeIdea(text){
+  const key=localStorage.getItem(AK);
+  if(!key){toast('A\u00f1ade tu API Key primero');openOv('stOv');return;}
+  isProc=true;
+  document.getElementById('recLbl').textContent='analizando...';
+  const p='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"T\u00edtulo corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qu\u00e9 es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Similares existentes","monetization":"C\u00f3mo monetizar","coins":3}\n\ncoins 1-5';
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{maxOutputTokens:800,temperature:.4}})
+    });
+    if(!r.ok){
+      const er=await r.json().catch(()=>({}));
+      toast(r.status===400||r.status===403?'API Key incorrecta':('Error: '+(er.error?.message||r.status)));
+      resetRec();return;
+    }
+    const d=await r.json();
+    const raw=d.candidates[0].content.parts[0].text.trim();
+    const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON');
+    const a=JSON.parse(m[0]);
+    const idea={
+      id:Date.now().toString(),transcript:text,
+      title:a.title||'Idea sin t\u00edtulo',
+      category:(a.category||'otro').toLowerCase(),
+      summary:a.summary||'',viability:a.viability||'',
+      similar:a.similar||'',monetization:a.monetization||'',
+      coins:Math.min(5,Math.max(1,parseInt(a.coins)||3)),
+      date:new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'short'}),
+      dateISO:new Date().toISOString()
+    };
+    ideas.unshift(idea);saveIdeas();
+    toast('\u00a1Idea guardada!');
+    document.getElementById('txBox').classList.remove('on');
+  }catch(e){toast('Error al analizar');console.error(e);}
+  finally{resetRec();}
+}
+
+/* ── FOLDERS ─────────────────────────────────────────── */
+const FOLDER_SVG='<svg viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg"><path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/></svg>';
+
+function renderFolders(){
+  const wrap=document.getElementById('foldersList');
+  const order=['musica','app','web','negocio','otro'];
+  wrap.innerHTML=order.map(cat=>{
+    const label=CATS[cat].label;
+    const bucket=ideas.filter(i=>i.category===cat);
+    const countStr=bucket.length>0?' '+bucket.length:'';
+    const itemsHTML=bucket.length===0
+      ?'<div class="folder-empty">sin ideas a\u00fan</div>'
+      :bucket.map(i=>'<div class="idea-item" onclick="openIdea(\''+i.id+'\')">'+esc(i.title)+'</div>').join('');
+    return '<div class="folder-row" id="fr-'+cat+'">'
+      +'<div class="folder-hd" onclick="togF(\''+cat+'\')">'
+      +'<svg class="fsvg" viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg"><path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/></svg>'
+      +'<span class="folder-name">'+label+'</span><span class="folder-count">'+countStr+'</span>'
+      +'</div>'
+      +'<div class="folder-items">'+itemsHTML+'</div>'
+      +'</div>';
+  }).join('');
+}
+function togF(cat){document.getElementById('fr-'+cat).classList.toggle('open');}
+
+/* ── SEARCH ──────────────────────────────────────────── */
+function doSearch(q){
+  document.getElementById('sx').classList.toggle('on',q.length>0);
+  const c=document.getElementById('sres');
+  if(!q.trim()){c.innerHTML='<div class="shint">Empieza a escribir para buscar</div>';return;}
+  const lo=q.toLowerCase();
+  const res=ideas.filter(i=>i.title.toLowerCase().includes(lo)||i.summary.toLowerCase().includes(lo)||i.transcript.toLowerCase().includes(lo));
+  if(!res.length){c.innerHTML='<div class="shint">Sin resultados para <b>'+esc(q)+'</b></div>';return;}
+  c.innerHTML=res.map(i=>'<div class="sc" onclick="openIdea(\''+i.id+'\')">'
+    +'<div class="sc-t">'+esc(i.title)+'</div>'
+    +'<div class="sc-s">'+esc(i.summary.substring(0,90))+(i.summary.length>90?'\u2026':'')+'</div>'
+    +'<div class="sc-ft"><span class="sc-cat">'+CATS[i.category].label+'</span><span class="sc-d">'+i.date+'</span></div>'
+    +'</div>').join('');
+}
+function clrSearch(){document.getElementById('sinp').value='';document.getElementById('sx').classList.remove('on');doSearch('');}
+
+/* ── DETAIL ──────────────────────────────────────────── */
+function openIdea(id){
+  const i=ideas.find(x=>x.id===id);if(!i)return;curId=id;
+  document.getElementById('dCatName').textContent=CATS[i.category].label;
+  document.getElementById('dTitle').textContent=i.title;
+  document.getElementById('dBodyText').textContent=i.summary;
+  document.getElementById('dVia').innerHTML=esc(i.viability)+(i.similar?'<br><small style="color:var(--muted)">Parecido: '+esc(i.similar)+'</small>':'');
+  document.getElementById('dMon').textContent=i.monetization;
+  document.getElementById('dOrig').textContent=i.transcript;
+  document.getElementById('dOrig').classList.remove('on');
+  document.getElementById('dotg').classList.remove('open');
+  openOv('detOv');
+  // Switch to inner nav when opening detail from home
+  if(curView==='grabar') gv('ideas');
+}
+function togOrig(){document.getElementById('dotg').classList.toggle('open');document.getElementById('dOrig').classList.toggle('on');}
+function delIdea(){
+  if(!curId)return;
+  ideas=ideas.filter(i=>i.id!==curId);saveIdeas();renderFolders();doSearch(document.getElementById('sinp').value);
+  closeOv('detOv');toast('Idea borrada');
+}
+
+/* ── EDIT ────────────────────────────────────────────── */
+function openEdit(){
+  const i=ideas.find(x=>x.id===curId);if(!i)return;
+  document.getElementById('eT').value=i.title;
+  document.getElementById('eCat').value=i.category;
+  document.getElementById('eS').value=i.summary;
+  document.getElementById('eV').value=i.viability;
+  document.getElementById('eSim').value=i.similar;
+  document.getElementById('eM').value=i.monetization;
+  editCoins=i.coins;
+  document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===editCoins));
+  openOv('edOv');
+}
+function pickC(v){editCoins=v;document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===v));}
+function saveEdit(){
+  const i=ideas.find(x=>x.id===curId);if(!i)return;
+  i.title=document.getElementById('eT').value.trim()||i.title;
+  i.category=document.getElementById('eCat').value;
+  i.summary=document.getElementById('eS').value.trim();
+  i.viability=document.getElementById('eV').value.trim();
+  i.similar=document.getElementById('eSim').value.trim();
+  i.monetization=document.getElementById('eM').value.trim();
+  i.coins=editCoins;
+  saveIdeas();renderFolders();doSearch(document.getElementById('sinp').value);
+  closeOv('edOv');openIdea(curId);toast('Guardado \u2713');
+}
+
+/* ── SHARE ───────────────────────────────────────────── */
+function openShr(){
+  const i=ideas.find(x=>x.id===curId);if(!i)return;
+  document.getElementById('shrT').textContent=i.title;
+  if(navigator.share)document.getElementById('ntvShr').style.display='flex';
+  openOv('shrOv');
+}
+function shrVia(m){
+  const i=ideas.find(x=>x.id===curId);if(!i)return;
+  const t='\ud83d\udca1 *'+i.title+'*\n\n'+i.summary+'\n\n\ud83d\udcc8 Viabilidad: '+i.viability+'\n\ud83d\udcb0 Monetizaci\u00f3n: '+i.monetization+'\n\n_via mimemo_';
+  if(m==='whatsapp'){window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');closeOv('shrOv');}
+  else if(m==='email'){window.open('mailto:?subject='+encodeURIComponent(i.title)+'&body='+encodeURIComponent(t),'_blank');closeOv('shrOv');}
+  else if(m==='copy'){navigator.clipboard.writeText(t).then(()=>{toast('Copiado \u2713');closeOv('shrOv');}).catch(()=>toast('No se pudo copiar'));}
+  else if(m==='native'&&navigator.share){navigator.share({title:i.title,text:t}).catch(()=>{});closeOv('shrOv');}
+}
+
+/* ── EXPORT ──────────────────────────────────────────── */
+function doExp(fmt){
+  let content,filename,mime;
+  if(fmt==='txt'){
+    content=ideas.map((i,n)=>'IDEA '+(n+1)+': '+i.title.toUpperCase()+'\n'+i.date+' | '+i.category+'\n\nQU\u00c9 ES:\n'+i.summary+'\n\nVIABILIDAD:\n'+i.viability+'\n\nMONETIZACI\u00d3N:\n'+i.monetization+'\n\nIDEA ORIGINAL:\n'+i.transcript).join('\n\n'+'='.repeat(40)+'\n\n');
+    filename='mimemo-ideas.txt';mime='text/plain';
+  }else{
+    content=JSON.stringify(ideas,null,2);filename='mimemo-ideas.json';mime='application/json';
+  }
+  const blob=new Blob([content],{type:mime}),url=URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'),{href:url,download:filename}).click();
+  URL.revokeObjectURL(url);
+  closeOv('expOv');closeOv('stOv');toast('Descargando...');
+}
+
+/* ── SETTINGS ────────────────────────────────────────── */
+function saveSt(){
+  const k=document.getElementById('apiKI').value.trim();
+  if(k){localStorage.setItem(AK,k);toast('API Key guardada \u2713');}
+  else{localStorage.removeItem(AK);toast('API Key eliminada');}
+  closeOv('stOv');
+  document.getElementById('apiBan').classList.toggle('hidden',!!k);
+}
+
+/* ── OVERLAYS ────────────────────────────────────────── */
+function openOv(id){document.getElementById(id).classList.add('open');}
+function closeOv(id){document.getElementById(id).classList.remove('open');}
+function ovClick(e,id){if(e.target===document.getElementById(id))closeOv(id);}
+
+/* ── UTILS ───────────────────────────────────────────── */
+function saveIdeas(){localStorage.setItem(SK,JSON.stringify(ideas));}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+
+/* ── INIT ────────────────────────────────────────────── */
+function init(){
+  const raw=localStorage.getItem(SK)||localStorage.getItem('memo_ideas_v1')||localStorage.getItem('mimemo_ideas_v1');
+  ideas=raw?JSON.parse(raw):[];
+  document.getElementById('expCnt').textContent=ideas.length+' idea'+(ideas.length!==1?'s':'')+' guardadas';
+  document.getElementById('apiBan').classList.toggle('hidden',!!localStorage.getItem(AK));
+  document.getElementById('apiKI').value=localStorage.getItem(AK)||'';
+  if(navigator.share)document.getElementById('ntvShr').style.display='flex';
+  // Wave
+  window.addEventListener('resize',resizeCvs);
+  resizeCvs();requestAnimationFrame(drawWave);
+  // Gyroscope
+  if(typeof DeviceOrientationEvent!=='undefined'){
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      document.addEventListener('click',async function g(){
+        try{if((await DeviceOrientationEvent.requestPermission())==='granted')setupGyro();}catch(e){}
+        document.removeEventListener('click',g);
+      },{once:true});
+    }else setupGyro();
+  }
+  setupSpeech();
+  runSplash();
+  if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+init();
+</script>
+</body>
+</html>

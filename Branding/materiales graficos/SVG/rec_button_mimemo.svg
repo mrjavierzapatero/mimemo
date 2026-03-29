@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Capa_2" data-name="Capa 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 105.18 105.18">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: url(#Degradado_sin_nombre_99-2);
+      }
+
+      .cls-2 {
+        fill: url(#Degradado_sin_nombre_99-4);
+      }
+
+      .cls-3 {
+        fill: url(#Degradado_sin_nombre_99-3);
+      }
+
+      .cls-4 {
+        fill: url(#Degradado_sin_nombre_99-5);
+      }
+
+      .cls-5 {
+        fill: url(#Degradado_sin_nombre_99);
+      }
+    </style>
+    <linearGradient id="Degradado_sin_nombre_99" data-name="Degradado sin nombre 99" x1="52.59" y1="105.18" x2="52.59" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0072b2"/>
+      <stop offset="1" stop-color="#0ba2dd"/>
+    </linearGradient>
+    <linearGradient id="Degradado_sin_nombre_99-2" data-name="Degradado sin nombre 99" x1="10.37" y1="52.59" x2="94.81" y2="52.59" xlink:href="#Degradado_sin_nombre_99"/>
+    <linearGradient id="Degradado_sin_nombre_99-3" data-name="Degradado sin nombre 99" x1="23.8" y1="52.59" x2="81.38" y2="52.59" xlink:href="#Degradado_sin_nombre_99"/>
+    <linearGradient id="Degradado_sin_nombre_99-4" data-name="Degradado sin nombre 99" x1="34.54" y1="52.59" x2="70.64" y2="52.59" xlink:href="#Degradado_sin_nombre_99"/>
+    <linearGradient id="Degradado_sin_nombre_99-5" data-name="Degradado sin nombre 99" x1="44.04" y1="52.59" x2="61.14" y2="52.59" xlink:href="#Degradado_sin_nombre_99"/>
+  </defs>
+  <g id="Capa_1-2" data-name="Capa 1">
+    <g>
+      <circle class="cls-5" cx="52.59" cy="52.59" r="52.59"/>
+      <circle class="cls-1" cx="52.59" cy="52.59" r="42.22"/>
+      <circle class="cls-3" cx="52.59" cy="52.59" r="28.79"/>
+      <circle class="cls-2" cx="52.59" cy="52.59" r="18.05"/>
+      <circle class="cls-4" cx="52.59" cy="52.59" r="8.55"/>
+    </g>
+  </g>
+</svg>

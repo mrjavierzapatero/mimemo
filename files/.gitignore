@@ -1,0 +1,26 @@
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Dependencias (si se añaden en el futuro)
+node_modules/
+dist/
+
+# Sensible — NUNCA subir al repo
+.env
+.env.local
+.env.*.local
+secrets.json
+apikeys.json
+config.local.js
+
+# Caché y builds
+.cache/
+*.tmp
