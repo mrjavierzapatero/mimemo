@@ -576,7 +576,7 @@
     <div class="hdl"></div>
     <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:6px">Escribe tu idea</h2>
     <p style="font-size:14px;color:var(--muted);margin-bottom:16px">No se pudo transcribir la voz. Escribe la idea aquí:</p>
-    <textarea id="mnTx" rows="5" placeholder="Describe tu idea..." style="width:100%;padding:12px;border:1.5px solid var(--bdr);border-radius:12px;font-size:15px;font-family:inherit;resize:none;outline:none;color:var(--text);"></textarea>
+    <textarea id="mnTx" rows="5" placeholder="Describe tu idea... (en móvil usa el micrófono del teclado)" style="width:100%;padding:12px;border:1.5px solid var(--bdr);border-radius:12px;font-size:15px;font-family:inherit;resize:none;outline:none;color:var(--text);user-select:text;-webkit-user-select:text;"></textarea>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn bg2" style="flex:1" onclick="closeOv('mnOv');resetRec()">Cancelar</button>
       <button class="btn bb"  style="flex:2" onclick="submitManual()"><i class="ph ph-sparkle"></i>Analizar</button>
@@ -664,15 +664,18 @@ function gv(name){
   if(name==='ideas') renderFolders();
 }
 
-/* RECORDING — Web Speech API (desktop) + fallback textarea manual (Chrome Android) */
-let isRec=false, isProc=false, recog=null, txAccum='', micStream=null;
+/* RECORDING */
+// speechOK: true si la Web Speech API produjo al menos un resultado en esta sesión
+let isRec=false, isProc=false, recog=null, txAccum='', micStream=null, speechOK=false;
 
-function setupSpeech(){
+function startSpeech(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR) return false;
+  if(!SR) return;
+  // Recrear siempre — nunca reutilizar objeto de sesión anterior
   recog=new SR();
   recog.continuous=true; recog.interimResults=true; recog.lang='es-ES';
   recog.onresult=function(e){
+    speechOK=true;
     var fin='', int='';
     for(var i=e.resultIndex;i<e.results.length;i++){
       if(e.results[i].isFinal) fin+=e.results[i][0].transcript+' ';
@@ -682,9 +685,16 @@ function setupSpeech(){
     var showing=(txAccum+int).trim();
     if(showing) showTx('"'+showing+'"');
   };
-  recog.onerror=function(e){ if(e.error==='not-allowed') toast('Permiso de micrófono denegado'); };
-  recog.onend=function(){ if(isRec){ try{ recog.start(); }catch(ex){} } };
-  return true;
+  recog.onerror=function(ev){
+    // Cualquier error (network, service-not-allowed, not-allowed…) invalida el objeto
+    recog=null;
+    if(ev.error==='not-allowed') toast('Permiso de micrófono denegado');
+  };
+  recog.onend=function(){
+    // Solo reiniciar si seguimos grabando Y el objeto aún es válido (sin error)
+    if(isRec && recog){ try{ recog.start(); }catch(ex){ recog=null; } }
+  };
+  try{ recog.start(); }catch(ex){ recog=null; }
 }
 
 function toggleRec(){ if(isProc) return; isRec ? doStop() : startRec(); }
@@ -693,23 +703,21 @@ async function startRec(){
   if(isProc) return;
   const key=localStorage.getItem(AK);
   if(!key){ toast('Configura tu API Key en ajustes'); openOv('stOv'); return; }
-  txAccum='';
+  txAccum=''; speechOK=false;
   document.getElementById('txBox').classList.remove('on');
-  // Obtener micrófono para animación membrana
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
     micStream=stream; startMembrane(stream);
   }catch(e){
-    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError'){ toast('Permiso de micrófono denegado'); return; }
+    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError')
+      toast('Permiso de micrófono denegado');
+    // Si no hay micrófono la membrana no anima, pero el resto funciona igual
   }
-  // Intentar Web Speech API (funciona en desktop Chrome, no en Android Chrome)
-  if(!recog) setupSpeech();
-  if(recog){ try{ recog.start(); }catch(e){} }
+  startSpeech(); // intento silencioso — falla sin interrumpir el flujo
   isRec=true;
   document.getElementById('recWrap').classList.add('recording');
   document.getElementById('recStopBtn').classList.add('visible');
   document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
-  if(!recog) showTx('grabando...');
 }
 
 function stopRec(){ doStop(); }
@@ -717,22 +725,26 @@ function stopRec(){ doStop(); }
 function doStop(){
   if(!isRec) return;
   isRec=false;
-  if(recog){ try{ recog.stop(); }catch(e){} }
+  if(recog){ try{ recog.stop(); }catch(e){} recog=null; }
   stopMembrane();
   if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
   document.getElementById('recWrap').classList.remove('recording');
   document.getElementById('recStopBtn').classList.remove('visible');
   var text=txAccum.trim();
-  if(text.length>3){
+  if(text.length>2){
     document.getElementById('recLbl').textContent='analizando...';
     analyzeText(text);
   } else {
-    // Sin transcripción automática → pedir al usuario que escriba
-    document.getElementById('mnTx').value='';
-    openOv('mnOv');
-    setTimeout(function(){ document.getElementById('mnTx').focus(); }, 300);
-    resetRec();
+    openManual();
   }
+}
+
+function openManual(){
+  document.getElementById('mnTx').value='';
+  openOv('mnOv');
+  // Delay necesario en iOS para que el overlay esté visible antes del focus
+  setTimeout(function(){ document.getElementById('mnTx').focus(); }, 400);
+  resetRec();
 }
 
 function submitManual(){

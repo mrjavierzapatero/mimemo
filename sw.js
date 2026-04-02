@@ -1,4 +1,4 @@
-const CACHE = 'mimemo-v2';
+const CACHE = 'mimemo-v3';
 const ASSETS = [
   './',
   './index.html',
