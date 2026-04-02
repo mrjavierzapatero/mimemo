@@ -727,95 +727,149 @@ function gv(name){
   if(name==='ideas')  renderFolders();
 }
 
-/* ── SPEECH + MEMBRANE ───────────────────────────────── */
-function setupSpeech(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){document.getElementById('recLbl').textContent='Navegador no soporta grabaci\u00f3n';return;}
-  recog=new SR(); recog.continuous=true; recog.interimResults=true; recog.lang='es-ES';
-  recog.onresult=e=>{
-    let f='',i2='';
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const t=e.results[i][0].transcript;
-      e.results[i].isFinal?(f+=t+' '):(i2+=t);
-    }
-    if(f) txText+=f;
-    const showing=txText+(i2?' '+i2:'');
-    const b=document.getElementById('txBox');
-    b.textContent='"'+showing.trim()+'"';b.classList.add('on');
-  };
-  recog.onerror=e=>{
-    if(e.error==='not-allowed'||e.error==='permission-denied')
-      toast('Necesitas dar permiso al micr\u00f3fono');
-    else if(e.error==='no-speech'){
-      // silence — keep going, don't stop
-    } else {
-      isRec=false; resetRecUI();
-    }
-  };
-  recog.onend=()=>{
-    // Android stops recognition after silence — auto-restart while recording
-    if(isRec && !isStopping){
-      try{ recog.start(); }catch(e){}
-    }
-  };
-}
-
-let isStopping=false;
+/* ── GRABACIÓN CON MediaRecorder + Gemini Audio ─────────
+   SpeechRecognition no funciona en Chrome Android PWA.
+   Solución: grabamos audio con MediaRecorder y lo enviamos
+   directamente a Gemini que transcribe Y analiza.
+──────────────────────────────────────────────────────── */
+let mediaRecorder=null, audioChunks=[], audioMimeType='audio/webm';
 
 function toggleRec(){if(isProc)return;isRec?doStop():startRec();}
 
-function startRec(){
+async function startRec(){
   if(isProc)return;
-  // Check speech support
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ toast('Tu navegador no soporta voz. Usa Chrome.'); return; }
-  if(!recog){ setupSpeech(); }
-  txText='';isStopping=false;
-  const b=document.getElementById('txBox');
-  b.textContent='Escuchando...';b.classList.add('on');
-  isRec=true;
+  const key=localStorage.getItem(AK);
+  if(!key){toast('Añade tu API Key primero');openOv('stOv');return;}
   try{
-    recog.start();
-    toast('Micrófono activo - habla ahora');
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    micStream=stream;
+    // Membrane animation uses the same stream
+    try{
+      audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      analyser=audioCtx.createAnalyser();
+      analyser.fftSize=256;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      membraneActive=true;
+      animateMembrane();
+    }catch(e){}
+    // Pick best supported format
+    const formats=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
+    audioMimeType=formats.find(f=>MediaRecorder.isTypeSupported(f))||'';
+    audioChunks=[];
+    mediaRecorder=new MediaRecorder(stream, audioMimeType?{mimeType:audioMimeType}:{});
+    audioMimeType=mediaRecorder.mimeType||'audio/webm';
+    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)audioChunks.push(e.data);};
+    mediaRecorder.start(200);
+    isRec=true;
+    document.getElementById('recWrap').classList.add('recording');
+    document.getElementById('recStopBtn').classList.add('visible');
+    const b=document.getElementById('txBox');
+    b.textContent='Escuchando... habla tu idea';b.classList.add('on');
+    document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
   }catch(e){
-    toast('Error: '+e.message);
-    isRec=false;
-    b.classList.remove('on');
-    return;
+    toast('Error micrófono: '+e.message);
   }
-  document.getElementById('recWrap').classList.add('recording');
-  document.getElementById('recStopBtn').classList.add('visible');
-  document.getElementById('recLbl').textContent='habla ahora — toca el cuadrado rojo para detener';
-  startMembrane();
 }
 
-function stopRec(){ doStop(); }
+function stopRec(){doStop();}
 
 function doStop(){
-  if(!isRec)return;
-  isStopping=true;
+  if(!isRec||!mediaRecorder)return;
   isRec=false;
-  try{recog.stop();}catch(e){}
-  resetRecUI();
+  document.getElementById('recWrap').classList.remove('recording');
+  document.getElementById('recStopBtn').classList.remove('visible');
+  document.getElementById('txBox').textContent='Procesando audio...';
+  document.getElementById('recLbl').textContent='analizando con Gemini...';
   stopMembrane();
-  const saved=txText.trim();
-  if(saved.length>3){
-    toast('Analizando con Gemini...');
-    analyzeIdea(saved);
-  } else {
-    toast('No se ha detectado voz. Inténtalo de nuevo.');
-    resetRec();
-  }
+  mediaRecorder.onstop=async()=>{
+    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
+    const blob=new Blob(audioChunks,{type:audioMimeType});
+    if(blob.size<1000){
+      toast('Audio demasiado corto. Inténtalo de nuevo.');
+      resetRec();return;
+    }
+    await analyzeAudio(blob);
+  };
+  mediaRecorder.stop();
 }
 
+function resetRec(){
+  isProc=false;
+  document.getElementById('recStopBtn').classList.remove('visible');
+  document.getElementById('txBox').classList.remove('on');
+  document.getElementById('recLbl').textContent='grabar idea';
+}
 function resetRecUI(){
   document.getElementById('recWrap').classList.remove('recording');
   document.getElementById('recStopBtn').classList.remove('visible');
 }
-function resetRec(){
-  isProc=false;
-  document.getElementById('recStopBtn').classList.remove('visible');
-  document.getElementById('recLbl').textContent='grabar idea';
+
+/* ── GEMINI AUDIO API ────────────────────────────────── */
+async function analyzeAudio(blob){
+  const key=localStorage.getItem(AK);
+  if(!key){toast('Añade tu API Key primero');openOv('stOv');resetRec();return;}
+  isProc=true;
+  // Convert blob → base64
+  const buf=await blob.arrayBuffer();
+  const bytes=new Uint8Array(buf);
+  let bin='';
+  const CHUNK=8192;
+  for(let i=0;i<bytes.length;i+=CHUNK){
+    bin+=String.fromCharCode(...bytes.subarray(i,Math.min(i+CHUNK,bytes.length)));
+  }
+  const b64=btoa(bin);
+  const mime=blob.type||'audio/webm';
+  const prompt='Transcribe este audio en español y analiza la idea. Devuelve SOLO JSON sin markdown.\n\n{"transcript":"texto exacto de lo que se dice","title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        contents:[{parts:[
+          {inline_data:{mime_type:mime,data:b64}},
+          {text:prompt}
+        ]}],
+        generationConfig:{maxOutputTokens:900,temperature:.4}
+      })
+    });
+    if(!r.ok){
+      const er=await r.json().catch(()=>({}));
+      toast(r.status===400||r.status===403?'API Key incorrecta':('Error: '+(er.error?.message||r.status)));
+      resetRec();return;
+    }
+    const d=await r.json();
+    const raw=d.candidates[0].content.parts[0].text.trim();
+    const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON');
+    const a=JSON.parse(m[0]);
+    // Show transcript
+    const b=document.getElementById('txBox');
+    if(a.transcript){b.textContent='"'+a.transcript+'"';b.classList.add('on');}
+    const idea={
+      id:Date.now().toString(),
+      transcript:a.transcript||'(audio)',
+      title:a.title||'Idea sin título',
+      category:(a.category||'otro').toLowerCase(),
+      summary:a.summary||'',viability:a.viability||'',
+      similar:a.similar||'',monetization:a.monetization||'',
+      coins:Math.min(5,Math.max(1,parseInt(a.coins)||3)),
+      date:new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'short'}),
+      dateISO:new Date().toISOString()
+    };
+    ideas.unshift(idea);saveIdeas();
+    const savedCat=idea.category;
+    toast('¡Idea guardada!');
+    setTimeout(()=>{
+      gv('ideas');renderFolders();
+      setTimeout(()=>{
+        const el=document.getElementById('fr-'+savedCat);
+        if(el&&!el.classList.contains('open'))el.querySelector('.folder-hd').click();
+      },300);
+    },1200);
+  }catch(e){
+    toast('Error al analizar: '+e.message);
+    console.error(e);
+  }finally{
+    resetRec();
+  }
 }
 
 /* ── GEMINI ──────────────────────────────────────────── */
@@ -1020,7 +1074,6 @@ function init(){
       },{once:true});
     }else setupGyro();
   }
-  setupSpeech();
   runSplash();
   if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
