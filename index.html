@@ -63,24 +63,15 @@
     .g-tagline{font-size:17px;font-weight:400;color:var(--coral);
       text-align:center;line-height:1.3;margin-bottom:30px;}
 
-    /* rec_button container — overflow:hidden keeps membrane inside */
+    /* rec_button container */
     .rec-wrap{position:relative;width:160px;height:160px;
       cursor:pointer;margin-bottom:18px;flex-shrink:0;
-      border-radius:50%;overflow:hidden;}
+      border-radius:50%;}
 
-    /* Stop square shown while recording */
-    .rec-stop{
-      position:absolute;top:50%;left:50%;
-      transform:translate(-50%,-50%);
-      width:36px;height:36px;border-radius:7px;
-      background:rgba(255,255,255,.9);
-      opacity:0;pointer-events:none;z-index:5;
-      transition:opacity .2s;
-    }
-    .recording .rec-stop{opacity:1;}
+
 
     /* Each circle is absolutely positioned, centred, animates independently */
-    .rec-wrap svg{position:absolute;top:0;left:0;width:160px;height:160px;}
+    .rec-wrap svg{position:absolute;top:0;left:0;width:160px;height:160px;overflow:hidden;border-radius:50%;}
     /* The 5 circles inside the SVG get their own transform-origin=center */
     /* We'll animate via JS by setting inline style transform on each <circle> */
 
@@ -97,7 +88,20 @@
     @keyframes ripOut{0%{transform:translate(-50%,-50%) scale(1);opacity:.5}
       100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}}
 
-    .g-lbl{font-size:13px;font-weight:400;color:var(--muted);}
+    .g-lbl{font-size:13px;font-weight:400;color:var(--muted);text-align:center;max-width:280px;}
+    /* Stop button — sits BELOW the rec button, separate element */
+    .rec-stop-btn{
+      display:none;
+      align-items:center;justify-content:center;
+      width:52px;height:52px;border-radius:10px;
+      background:var(--coral);
+      box-shadow:0 3px 12px rgba(230,32,68,.4);
+      cursor:pointer;border:none;margin-top:0;
+      margin-bottom:4px;
+      flex-shrink:0;
+    }
+    .rec-stop-btn.visible{display:flex;}
+    .rec-stop-inner{width:22px;height:22px;background:#fff;border-radius:4px;}
     .txbox{margin-top:14px;background:#f5f9fc;border:1px solid var(--bdr);
       border-radius:12px;padding:10px 16px;font-size:14px;font-style:italic;
       color:var(--text);max-width:300px;width:100%;
@@ -129,8 +133,8 @@
     .folder-count{font-size:15px;font-weight:400;color:var(--coral);opacity:.6;margin-left:2px;}
     .folder-items{display:none;padding:8px 0 0 46px;}
     .folder-row.open .folder-items{display:block;}
-    .idea-item{font-size:14px;color:var(--muted);padding:4px 0;cursor:pointer;line-height:1.4;}
-    .idea-item::before{content:"· ";color:var(--muted);}
+    .idea-item{font-size:14px;color:var(--text);padding:4px 0;cursor:pointer;line-height:1.4;}
+    .idea-item::before{content:"· ";color:var(--text);}
     .idea-item:active{color:var(--text);}
     .folder-empty{font-size:13px;color:var(--muted);padding:4px 0 0 46px;font-style:italic;}
 
@@ -185,15 +189,16 @@
       padding-bottom:env(safe-area-inset-bottom,0px);
     }
     .nt{display:flex;flex-direction:column;align-items:center;gap:4px;
-      cursor:pointer;padding:6px 28px;border:none;background:none;
-      color:rgba(255,255,255,.5);font-size:11px;font-weight:500;
+      cursor:pointer;padding:6px 20px;border:none;background:none;
+      font-size:11px;font-weight:500;
       font-family:'Roboto',sans-serif;text-transform:lowercase;
-      transition:color .2s;}
-    .nt i{font-size:26px;transition:transform .18s;display:block;}
-    .nt svg{transition:transform .18s;}
-    .nt.active{color:#fff;}
+      color:var(--b1);opacity:.5;
+      transition:opacity .2s;}
+    .nt i{font-size:26px;transition:transform .18s;display:block;color:var(--coral);}
+    .nt svg{transition:transform .18s;fill:var(--coral);}
+    .nt.active{opacity:1;}
     .nt.active i{transform:scale(1.1);}
-    .nt:active i{transform:scale(.82);}
+    .nt:active i,.nt:active svg{transform:scale(.82);}
 
     /* ══ OVERLAYS / SHEETS ═══════════════════════════════ */
     .ov{position:fixed;inset:0;background:rgba(10,18,30,.5);z-index:300;
@@ -358,8 +363,6 @@
       <div class="ripple"></div>
       <div class="ripple"></div>
       <div class="ripple"></div>
-      <!-- Stop square overlay -->
-      <div class="rec-stop"></div>
       <!-- SVG with individually addressable circles for membrane effect -->
       <svg id="recSvg" viewBox="0 0 105.18 105.18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <defs>
@@ -380,6 +383,10 @@
       </svg>
     </div>
 
+    <!-- Stop button — outside rec-wrap so touch works on Android -->
+    <button class="rec-stop-btn" id="recStopBtn" onclick="stopRec()">
+      <div class="rec-stop-inner"></div>
+    </button>
     <span class="g-lbl" id="recLbl">grabar idea</span>
     <div class="txbox" id="txBox"></div>
     <div class="api-ban hidden" id="apiBan" onclick="openOv('stOv')">
@@ -742,7 +749,8 @@ function startRec(){
   isRec=true;
   try{recog.start();}catch(e){}
   document.getElementById('recWrap').classList.add('recording');
-  document.getElementById('recLbl').textContent='toca para detener';
+  document.getElementById('recStopBtn').classList.add('visible');
+  document.getElementById('recLbl').textContent='toca el cuadrado para detener';
   startMembrane(); // start membrane vibration with mic
 }
 
@@ -750,12 +758,14 @@ function stopRec(){
   isRec=false;
   try{recog.stop();}catch(e){}
   document.getElementById('recWrap').classList.remove('recording');
+  document.getElementById('recStopBtn').classList.remove('visible');
   stopMembrane();
   if(txText.trim().length>4) analyzeIdea(txText.trim());
   else{resetRec();document.getElementById('txBox').classList.remove('on');}
 }
 function resetRec(){
   isProc=false;
+  document.getElementById('recStopBtn').classList.remove('visible');
   document.getElementById('recLbl').textContent='grabar idea';
 }
 
@@ -791,7 +801,8 @@ async function analyzeIdea(text){
       dateISO:new Date().toISOString()
     };
     ideas.unshift(idea);saveIdeas();
-    toast('\u00a1Idea guardada!');
+    toast('\u00a1Idea guardada! Ve a mis ideas');
+    setTimeout(()=>{ gv('ideas'); renderFolders(); }, 2000);
     document.getElementById('txBox').classList.remove('on');
   }catch(e){toast('Error al analizar');console.error(e);}
   finally{resetRec();}
