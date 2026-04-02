@@ -664,8 +664,7 @@ function gv(name){
   if(name==='ideas') renderFolders();
 }
 
-/* RECORDING — Web Speech API → texto → Gemini. Fallback: textarea manual */
-/* RECORDING — Web Speech API (desktop) + fallback manual (Chrome Android) */
+/* RECORDING — Web Speech API (desktop) + fallback textarea manual (Chrome Android) */
 let isRec=false, isProc=false, recog=null, txAccum='', micStream=null;
 
 function setupSpeech(){
@@ -762,7 +761,10 @@ async function analyzeText(text){
     });
     if(!r.ok){
       var er=await r.json().catch(function(){return {};});
-      toast(r.status===403||r.status===400?'API Key incorrecta':('Error: '+(er.error&&er.error.message||r.status)));
+      var erMsg=r.status===403||r.status===400
+        ?'API Key incorrecta (HTTP '+r.status+')'
+        :'HTTP '+r.status+': '+(er.error&&er.error.message?er.error.message:JSON.stringify(er).slice(0,300));
+      alert('Error Gemini:\n'+erMsg);
       resetRec(); return;
     }
     var d=await r.json();
@@ -790,7 +792,7 @@ async function analyzeText(text){
         if(el&&!el.classList.contains('open')) el.querySelector('.folder-hd').click();
       },300);
     },1200);
-  }catch(e){ toast('Error: '+e.message); console.error(e); }
+  }catch(e){ alert('Error Gemini:\n'+(e&&e.message?e.message:String(e))); console.error(e); }
   finally{ resetRec(); }
 }
 /* FOLDERS */
