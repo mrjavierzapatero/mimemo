@@ -570,6 +570,20 @@
   </div>
 </div>
 
+<!-- MANUAL INPUT OVERLAY (fallback cuando no hay transcripción) -->
+<div class="ov" id="mnOv" onclick="ovClick(event,'mnOv')">
+  <div class="sh">
+    <div class="hdl"></div>
+    <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:6px">Escribe tu idea</h2>
+    <p style="font-size:14px;color:var(--muted);margin-bottom:16px">No se pudo transcribir la voz. Escribe la idea aquí:</p>
+    <textarea id="mnTx" rows="5" placeholder="Describe tu idea..." style="width:100%;padding:12px;border:1.5px solid var(--bdr);border-radius:12px;font-size:15px;font-family:inherit;resize:none;outline:none;color:var(--text);"></textarea>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn bg2" style="flex:1" onclick="closeOv('mnOv');resetRec()">Cancelar</button>
+      <button class="btn bb"  style="flex:2" onclick="submitManual()"><i class="ph ph-sparkle"></i>Analizar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -650,8 +664,29 @@ function gv(name){
   if(name==='ideas') renderFolders();
 }
 
-/* RECORDING — MediaRecorder → Gemini Audio API (Chrome Android compatible) */
-let isRec=false, isProc=false, mediaRec=null, audioChunks=[], micStream=null;
+/* RECORDING — Web Speech API → texto → Gemini. Fallback: textarea manual */
+/* RECORDING — Web Speech API (desktop) + fallback manual (Chrome Android) */
+let isRec=false, isProc=false, recog=null, txAccum='', micStream=null;
+
+function setupSpeech(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return false;
+  recog=new SR();
+  recog.continuous=true; recog.interimResults=true; recog.lang='es-ES';
+  recog.onresult=function(e){
+    var fin='', int='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) fin+=e.results[i][0].transcript+' ';
+      else int+=e.results[i][0].transcript;
+    }
+    if(fin) txAccum+=fin;
+    var showing=(txAccum+int).trim();
+    if(showing) showTx('"'+showing+'"');
+  };
+  recog.onerror=function(e){ if(e.error==='not-allowed') toast('Permiso de micrófono denegado'); };
+  recog.onend=function(){ if(isRec){ try{ recog.start(); }catch(ex){} } };
+  return true;
+}
 
 function toggleRec(){ if(isProc) return; isRec ? doStop() : startRec(); }
 
@@ -659,34 +694,23 @@ async function startRec(){
   if(isProc) return;
   const key=localStorage.getItem(AK);
   if(!key){ toast('Configura tu API Key en ajustes'); openOv('stOv'); return; }
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    toast('Tu navegador no soporta grabación de audio'); return;
-  }
+  txAccum='';
+  document.getElementById('txBox').classList.remove('on');
+  // Obtener micrófono para animación membrana
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-    micStream=stream;
-    startMembrane(stream);
-    audioChunks=[];
-    // Detectar formato soportado (Chrome Android usa webm/opus)
-    var mimeType='audio/webm';
-    if(window.MediaRecorder){
-      if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType='audio/webm;codecs=opus';
-      else if(MediaRecorder.isTypeSupported('audio/webm')) mimeType='audio/webm';
-      else if(MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mimeType='audio/ogg;codecs=opus';
-      else if(MediaRecorder.isTypeSupported('audio/mp4')) mimeType='audio/mp4';
-    }
-    mediaRec=new MediaRecorder(stream,{mimeType:mimeType});
-    mediaRec.ondataavailable=function(e){ if(e.data&&e.data.size>0) audioChunks.push(e.data); };
-    mediaRec.start(250);
-    isRec=true;
-    document.getElementById('recWrap').classList.add('recording');
-    document.getElementById('recStopBtn').classList.add('visible');
-    document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
-    showTx('grabando...');
+    micStream=stream; startMembrane(stream);
   }catch(e){
-    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError') toast('Permiso de micrófono denegado');
-    else toast('Error al acceder al micrófono');
+    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError'){ toast('Permiso de micrófono denegado'); return; }
   }
+  // Intentar Web Speech API (funciona en desktop Chrome, no en Android Chrome)
+  if(!recog) setupSpeech();
+  if(recog){ try{ recog.start(); }catch(e){} }
+  isRec=true;
+  document.getElementById('recWrap').classList.add('recording');
+  document.getElementById('recStopBtn').classList.add('visible');
+  document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
+  if(!recog) showTx('grabando...');
 }
 
 function stopRec(){ doStop(); }
@@ -694,95 +718,47 @@ function stopRec(){ doStop(); }
 function doStop(){
   if(!isRec) return;
   isRec=false;
+  if(recog){ try{ recog.stop(); }catch(e){} }
   stopMembrane();
+  if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
   document.getElementById('recWrap').classList.remove('recording');
   document.getElementById('recStopBtn').classList.remove('visible');
-  if(mediaRec&&mediaRec.state!=='inactive'){
-    mediaRec.onstop=function(){
-      var mimeType=mediaRec.mimeType||'audio/webm';
-      var blob=new Blob(audioChunks,{type:mimeType});
-      if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
-      if(blob.size<1500){
-        toast('No se detectó voz. Habla más cerca del móvil.');
-        resetRec(); return;
-      }
-      document.getElementById('recLbl').textContent='analizando...';
-      analyzeAudio(blob);
-    };
-    mediaRec.stop();
+  var text=txAccum.trim();
+  if(text.length>3){
+    document.getElementById('recLbl').textContent='analizando...';
+    analyzeText(text);
   } else {
-    if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
+    // Sin transcripción automática → pedir al usuario que escriba
+    document.getElementById('mnTx').value='';
+    openOv('mnOv');
+    setTimeout(function(){ document.getElementById('mnTx').focus(); }, 300);
     resetRec();
   }
+}
+
+function submitManual(){
+  var text=document.getElementById('mnTx').value.trim();
+  if(!text){ toast('Escribe tu idea primero'); return; }
+  closeOv('mnOv');
+  document.getElementById('recLbl').textContent='analizando...';
+  analyzeText(text);
 }
 
 function showTx(t){ var b=document.getElementById('txBox'); b.textContent=t; b.classList.add('on'); }
 function resetRec(){ isProc=false; document.getElementById('recStopBtn').classList.remove('visible'); document.getElementById('recLbl').textContent='grabar idea'; document.getElementById('txBox').classList.remove('on'); }
 
-function blobToBase64(blob){
-  return new Promise(function(resolve,reject){
-    var reader=new FileReader();
-    reader.onloadend=function(){ resolve(reader.result.split(',')[1]); };
-    reader.onerror=reject;
-    reader.readAsDataURL(blob);
-  });
-}
-
-// Convierte cualquier audio (webm/ogg/mp4) a WAV PCM 16-bit mono
-// Gemini soporta audio/wav pero NO audio/webm
-function blobToWav(blob){
-  return new Promise(function(resolve,reject){
-    var ctx=new (window.AudioContext||window.webkitAudioContext)();
-    blob.arrayBuffer().then(function(ab){
-      ctx.decodeAudioData(ab,function(audioBuf){
-        ctx.close();
-        var sr=audioBuf.sampleRate, len=audioBuf.length;
-        var ch=audioBuf.getChannelData(0);
-        if(audioBuf.numberOfChannels>1){
-          var ch2=audioBuf.getChannelData(1);
-          var mono=new Float32Array(len);
-          for(var i=0;i<len;i++) mono[i]=(ch[i]+ch2[i])/2;
-          ch=mono;
-        }
-        var wavBuf=new ArrayBuffer(44+len*2);
-        var dv=new DataView(wavBuf);
-        function ws(off,s){for(var i=0;i<s.length;i++)dv.setUint8(off+i,s.charCodeAt(i));}
-        ws(0,'RIFF'); dv.setUint32(4,36+len*2,true);
-        ws(8,'WAVE'); ws(12,'fmt ');
-        dv.setUint32(16,16,true); dv.setUint16(20,1,true);
-        dv.setUint16(22,1,true); dv.setUint32(24,sr,true);
-        dv.setUint32(28,sr*2,true); dv.setUint16(32,2,true);
-        dv.setUint16(34,16,true); ws(36,'data'); dv.setUint32(40,len*2,true);
-        var off=44;
-        for(var i=0;i<len;i++,off+=2){
-          var s=Math.max(-1,Math.min(1,ch[i]));
-          dv.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);
-        }
-        resolve(new Blob([wavBuf],{type:'audio/wav'}));
-      },reject);
-    }).catch(reject);
-  });
-}
-
-/* GEMINI AUDIO API — transcribe + analiza en una sola llamada */
-async function analyzeAudio(blob){
+/* GEMINI TEXT API */
+async function analyzeText(text){
   const key=localStorage.getItem(AK);
   if(!key){ toast('Añade tu API Key'); openOv('stOv'); resetRec(); return; }
   isProc=true;
+  showTx('"'+text+'"');
+  var prompt='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
   try{
-    var wavBlob=await blobToWav(blob);
-    var b64=await blobToBase64(wavBlob);
-    var prompt='Transcribe exactamente lo que se dice en este audio en español. Luego analiza la idea. Devuelve SOLO JSON sin markdown:\n{"transcript":"Transcripción exacta del audio","title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
     var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {inlineData:{mimeType:'audio/wav',data:b64}},
-          {text:prompt}
-        ]}],
-        generationConfig:{maxOutputTokens:900,temperature:.3}
-      })
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:.3}})
     });
     if(!r.ok){
       var er=await r.json().catch(function(){return {};});
@@ -794,8 +770,6 @@ async function analyzeAudio(blob){
     var m=raw.trim().match(/\{[\s\S]*\}/);
     if(!m) throw new Error('Gemini no devolvió JSON');
     var a=JSON.parse(m[0]);
-    var text=a.transcript||'(sin transcripción)';
-    showTx('"'+text+'"');
     var idea={
       id:Date.now().toString(), transcript:text,
       title:a.title||'Idea sin título',
@@ -816,22 +790,8 @@ async function analyzeAudio(blob){
         if(el&&!el.classList.contains('open')) el.querySelector('.folder-hd').click();
       },300);
     },1200);
-  }catch(e){ console.error(e); showDebugError(e); }
+  }catch(e){ toast('Error: '+e.message); console.error(e); }
   finally{ resetRec(); }
-}
-
-function showDebugError(e){
-  var msg='ERROR:\n'+(e&&e.message?e.message:String(e));
-  if(e&&e.stack) msg+='\n\nSTACK:\n'+e.stack.slice(0,600);
-  var d=document.createElement('div');
-  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);color:#fff;font-size:13px;font-family:monospace;padding:20px;overflow:auto;white-space:pre-wrap;word-break:break-all;';
-  d.textContent=msg;
-  var btn=document.createElement('button');
-  btn.textContent='Cerrar';
-  btn.style.cssText='display:block;margin:16px 0 0;padding:10px 24px;background:#e62044;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;';
-  btn.onclick=function(){ document.body.removeChild(d); };
-  d.appendChild(btn);
-  document.body.appendChild(d);
 }
 /* FOLDERS */
 function renderFolders(){
