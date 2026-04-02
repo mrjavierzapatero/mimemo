@@ -579,503 +579,337 @@ const CATS={
   musica:{label:'m\u00fasica'},app:{label:'apps'},
   web:{label:'web'},negocio:{label:'negocios'},otro:{label:'miscel\u00e1nea'}
 };
-let ideas=[], curId=null, editCoins=3;
-let isRec=false, isProc=false, txText='', recog=null;
-let waveT=0, gyro=0, curView='grabar';
+let ideas=[], curId=null, editCoins=3, curView='grabar';
 
-/* ── MEMBRANE VIBRATION (Web Audio API) ─────────────────
-   Each of the 5 circles gets its own frequency & phase.
-   Outer circles = bigger amplitude (like a real speaker cone).
-   Driven by microphone amplitude via AnalyserNode.
-────────────────────────────────────────────────────────── */
-let audioCtx=null, analyser=null, micStream=null;
-let membraneActive=false;
-// Frequency and phase offset for each circle (outermost=0, innermost=4)
-const FREQ  = [1.0, 1.35, 1.72, 2.1, 2.6];  // oscillation Hz
-const PHASE = [0,   0.8,  1.6,  2.4, 3.1];  // phase offset rad
-const AMP   = [0.06, 0.05, 0.04, 0.03, 0.02]; // max scale delta (outermost biggest)
-const circles = [
-  document.getElementById('rc0'),
-  document.getElementById('rc1'),
-  document.getElementById('rc2'),
-  document.getElementById('rc3'),
-  document.getElementById('rc4')
-];
-let memT=0, micLevel=0;
-
-async function startMembrane() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true,video:false});
-    micStream = stream;
-    audioCtx  = new (window.AudioContext||window.webkitAudioContext)();
-    analyser  = audioCtx.createAnalyser();
-    analyser.fftSize = 256;
+/* MEMBRANE */
+const FREQ=[1.0,1.35,1.72,2.1,2.6], PHASE=[0,.8,1.6,2.4,3.1], AMP=[.06,.05,.04,.03,.02];
+let audioCtx=null, analyser=null, memActive=false, memT=0, micLvl=0;
+function startMembrane(stream){
+  try{
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    analyser=audioCtx.createAnalyser(); analyser.fftSize=256;
     audioCtx.createMediaStreamSource(stream).connect(analyser);
-    membraneActive = true;
-    animateMembrane();
-  } catch(e) {
-    // Permission denied — animate with idle oscillation only
-    membraneActive = true;
-    animateMembrane();
-  }
+  }catch(e){ analyser=null; }
+  memActive=true; animMem();
 }
-
-function stopMembrane() {
-  membraneActive = false;
-  if (micStream) { micStream.getTracks().forEach(t=>t.stop()); micStream=null; }
-  if (audioCtx)  { audioCtx.close(); audioCtx=null; analyser=null; }
-  // Reset circles
-  circles.forEach(c=>{ if(c) c.style.transform='scale(1)'; });
+function stopMembrane(){
+  memActive=false;
+  if(audioCtx){ audioCtx.close().catch(()=>{}); audioCtx=null; analyser=null; }
+  ['rc0','rc1','rc2','rc3','rc4'].forEach(id=>{ const c=document.getElementById(id); if(c) c.style.transform='scale(1)'; });
 }
-
-function animateMembrane() {
-  if (!membraneActive) return;
-  // Get mic level (0-1)
-  if (analyser) {
-    const buf = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteTimeDomainData(buf);
-    let sum=0;
-    for (let i=0;i<buf.length;i++) { const v=(buf[i]-128)/128; sum+=v*v; }
-    micLevel = Math.sqrt(sum/buf.length); // RMS
-  } else {
-    // Idle: gentle pulse
-    micLevel = 0.08 + Math.sin(memT*2)*0.04;
-  }
-  memT += 0.016;
-  // Drive each circle
-  circles.forEach((c,i)=>{
-    if (!c) return;
-    // Mix: steady oscillation + mic level boost
-    const osc = Math.sin(memT * FREQ[i] * Math.PI * 2 + PHASE[i]);
-    const scale = 1 + osc * AMP[i] * (0.3 + micLevel * 8);
-    c.style.transform = 'scale('+scale.toFixed(4)+')';
+function animMem(){
+  if(!memActive) return;
+  if(analyser){
+    const buf=new Uint8Array(analyser.frequencyBinCount); analyser.getByteTimeDomainData(buf);
+    let s=0; buf.forEach(v=>{ const x=(v-128)/128; s+=x*x; }); micLvl=Math.sqrt(s/buf.length);
+  } else { micLvl=.06+Math.sin(memT*2)*.03; }
+  memT+=.016;
+  ['rc0','rc1','rc2','rc3','rc4'].forEach((id,i)=>{
+    const c=document.getElementById(id); if(!c) return;
+    c.style.transform='scale('+(1+Math.sin(memT*FREQ[i]*Math.PI*2+PHASE[i])*AMP[i]*(.3+micLvl*8)).toFixed(4)+')';
   });
-  requestAnimationFrame(animateMembrane);
+  requestAnimationFrame(animMem);
 }
 
-/* ── WAVE CANVAS ─────────────────────────────────────── */
-const CVS=document.getElementById('waveCanvas');
-const CTX2=CVS.getContext('2d');
-function resizeCvs(){
-  const foot=document.getElementById('waterFoot');
-  CVS.width=window.innerWidth;
-  CVS.height=foot.offsetHeight||136;
-}
+/* WAVE */
+let waveT=0, gyro=0;
+const CVS=document.getElementById('waveCanvas'), CTX2=CVS.getContext('2d');
+function resizeCvs(){ CVS.width=window.innerWidth; CVS.height=document.getElementById('waterFoot').offsetHeight||136; }
 function drawWave(){
-  const w=CVS.width, h=CVS.height;
-  if(!w||!h){requestAnimationFrame(drawWave);return;}
+  const w=CVS.width,h=CVS.height; if(!w||!h){ requestAnimationFrame(drawWave); return; }
   CTX2.clearRect(0,0,w,h);
-  // Single organic wave — crest at ~38% from top of footer canvas
-  const baseY=h*0.38;
-  function getY(x){
-    const nx=x/w;
-    const tilt=-gyro*16*(nx-0.5);
-    return baseY+tilt
-      +Math.sin(nx*Math.PI*2.0+waveT*0.85)*10
-      +Math.sin(nx*Math.PI*3.5+waveT*0.52+1.2)*5
-      +Math.sin(nx*Math.PI*1.2+waveT*1.3+2.4)*3;
-  }
-  const grad=CTX2.createLinearGradient(0,baseY-14,0,h);
-  grad.addColorStop(0,'#1a9fd4');
-  grad.addColorStop(0.25,'#0080bb');
-  grad.addColorStop(1,'#00538a');
-  CTX2.beginPath();
-  CTX2.moveTo(0,getY(0));
-  for(let x=2;x<=w;x+=2) CTX2.lineTo(x,getY(x));
-  CTX2.lineTo(w,h+2);CTX2.lineTo(0,h+2);CTX2.closePath();
-  CTX2.fillStyle=grad;CTX2.fill();
-  waveT+=0.018;
-  requestAnimationFrame(drawWave);
+  const by=h*.38;
+  function yAt(x){ const nx=x/w,tl=-gyro*16*(nx-.5); return by+tl+Math.sin(nx*Math.PI*2+waveT*.85)*10+Math.sin(nx*Math.PI*3.5+waveT*.52+1.2)*5+Math.sin(nx*Math.PI*1.2+waveT*1.3+2.4)*3; }
+  const g=CTX2.createLinearGradient(0,by-14,0,h);
+  g.addColorStop(0,'#1a9fd4'); g.addColorStop(.25,'#0080bb'); g.addColorStop(1,'#00538a');
+  CTX2.beginPath(); CTX2.moveTo(0,yAt(0));
+  for(let x=2;x<=w;x+=2) CTX2.lineTo(x,yAt(x));
+  CTX2.lineTo(w,h+2); CTX2.lineTo(0,h+2); CTX2.closePath(); CTX2.fillStyle=g; CTX2.fill();
+  waveT+=.018; requestAnimationFrame(drawWave);
 }
-function setupGyro(){
-  window.addEventListener('deviceorientation',e=>{
-    if(e.gamma!==null) gyro=Math.max(-1,Math.min(1,e.gamma/35));
-  });
-}
+function setupGyro(){ window.addEventListener('deviceorientation',e=>{ if(e.gamma!==null) gyro=Math.max(-1,Math.min(1,e.gamma/35)); }); }
 
-/* ── SPLASH ──────────────────────────────────────────── */
+/* SPLASH */
 function runSplash(){
   setTimeout(()=>{
     document.getElementById('splash').classList.add('out');
-    setTimeout(()=>{
-      document.getElementById('splash').style.display='none';
-      document.getElementById('app').classList.add('ready');
-    },680);
+    setTimeout(()=>{ document.getElementById('splash').style.display='none'; document.getElementById('app').classList.add('ready'); },680);
   },2100);
 }
 
-/* ── VIEWS ───────────────────────────────────────────── */
+/* VIEWS */
 function gv(name){
-  if(curView===name)return;
-  curView=name;
+  if(curView===name) return; curView=name;
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  const map={grabar:'vGrabar',ideas:'vIdeas',buscar:'vBuscar'};
-  document.getElementById(map[name]).classList.add('active');
-  // Footer nav switching
+  document.getElementById({grabar:'vGrabar',ideas:'vIdeas',buscar:'vBuscar'}[name]).classList.add('active');
   const home=name==='grabar';
   document.getElementById('navHome').style.display=home?'flex':'none';
   document.getElementById('navInner').style.display=home?'none':'flex';
-  const tN=document.getElementById('tabN');
-  const tI=document.getElementById('tabI');
-  const tB=document.getElementById('tabB');
-  if(!home){
-    if(tN) tN.classList.toggle('active',false);
-    if(tI) tI.classList.toggle('active',name==='ideas');
-    if(tB) tB.classList.toggle('active',name==='buscar');
-  }
+  if(!home){ ['tabN','tabI','tabB'].forEach(id=>{ const el=document.getElementById(id); if(el) el.classList.toggle('active',(id==='tabI'&&name==='ideas')||(id==='tabB'&&name==='buscar')); }); }
   if(name==='buscar') setTimeout(()=>document.getElementById('sinp').focus(),220);
-  if(name==='ideas')  renderFolders();
+  if(name==='ideas') renderFolders();
 }
 
-/* ── GRABACIÓN CON MediaRecorder + Gemini Audio ─────────
-   SpeechRecognition no funciona en Chrome Android PWA.
-   Solución: grabamos audio con MediaRecorder y lo enviamos
-   directamente a Gemini que transcribe Y analiza.
-──────────────────────────────────────────────────────── */
-let mediaRecorder=null, audioChunks=[], audioMimeType='audio/webm';
+/* RECORDING — Web Speech API transcribe → Gemini analiza texto */
+let isRec=false, isProc=false, recog=null, txAccum='', micStream=null;
 
-function toggleRec(){if(isProc)return;isRec?doStop():startRec();}
+function setupSpeech(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return false;
+  recog=new SR();
+  recog.continuous=true;
+  recog.interimResults=true;
+  recog.lang='es-ES';
+  recog.onresult=function(e){
+    var final='', interim='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript+' ';
+      else interim+=e.results[i][0].transcript;
+    }
+    if(final) txAccum+=final;
+    var showing=(txAccum+interim).trim();
+    if(showing){ showTx('"'+showing+'"'); }
+  };
+  recog.onerror=function(e){
+    if(e.error==='not-allowed') toast('Permiso de micrófono denegado');
+  };
+  recog.onend=function(){
+    // Android stops after silence — restart if still recording
+    if(isRec){ try{ recog.start(); }catch(ex){} }
+  };
+  return true;
+}
+
+function toggleRec(){ if(isProc) return; isRec ? doStop() : startRec(); }
 
 async function startRec(){
-  if(isProc)return;
+  if(isProc) return;
   const key=localStorage.getItem(AK);
-  if(!key){toast('Añade tu API Key primero');openOv('stOv');return;}
+  if(!key){ toast('Configura tu API Key en ajustes'); openOv('stOv'); return; }
+  // Setup speech if not done
+  if(!recog && !setupSpeech()){
+    toast('Tu navegador no soporta reconocimiento de voz');
+    return;
+  }
+  txAccum='';
+  document.getElementById('txBox').classList.remove('on');
+  // Get mic for membrane animation
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
     micStream=stream;
-    // Membrane animation uses the same stream
-    try{
-      audioCtx=new(window.AudioContext||window.webkitAudioContext)();
-      analyser=audioCtx.createAnalyser();
-      analyser.fftSize=256;
-      audioCtx.createMediaStreamSource(stream).connect(analyser);
-      membraneActive=true;
-      animateMembrane();
-    }catch(e){}
-    // Pick best supported format
-    const formats=['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
-    audioMimeType=formats.find(f=>MediaRecorder.isTypeSupported(f))||'';
-    audioChunks=[];
-    mediaRecorder=new MediaRecorder(stream, audioMimeType?{mimeType:audioMimeType}:{});
-    audioMimeType=mediaRecorder.mimeType||'audio/webm';
-    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)audioChunks.push(e.data);};
-    mediaRecorder.start(200);
-    isRec=true;
-    document.getElementById('recWrap').classList.add('recording');
-    document.getElementById('recStopBtn').classList.add('visible');
-    const b=document.getElementById('txBox');
-    b.textContent='Escuchando... habla tu idea';b.classList.add('on');
-    document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
-  }catch(e){
-    toast('Error micrófono: '+e.message);
-  }
+    startMembrane(stream);
+  }catch(e){ /* membrane won't animate but recording still works */ }
+  // Start speech recognition
+  try{ recog.start(); }catch(e){}
+  isRec=true;
+  document.getElementById('recWrap').classList.add('recording');
+  document.getElementById('recStopBtn').classList.add('visible');
+  document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
 }
 
-function stopRec(){doStop();}
+function stopRec(){ doStop(); }
 
 function doStop(){
-  if(!isRec||!mediaRecorder)return;
+  if(!isRec) return;
   isRec=false;
-  document.getElementById('recWrap').classList.remove('recording');
-  document.getElementById('recStopBtn').classList.remove('visible');
-  document.getElementById('txBox').textContent='Procesando audio...';
-  document.getElementById('recLbl').textContent='analizando con Gemini...';
+  try{ recog.stop(); }catch(e){}
+  // Stop membrane
   stopMembrane();
-  mediaRecorder.onstop=async()=>{
-    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null;}
-    const blob=new Blob(audioChunks,{type:audioMimeType});
-    if(blob.size<1000){
-      toast('Audio demasiado corto. Inténtalo de nuevo.');
-      resetRec();return;
-    }
-    await analyzeAudio(blob);
-  };
-  mediaRecorder.stop();
-}
-
-function resetRec(){
-  isProc=false;
-  document.getElementById('recStopBtn').classList.remove('visible');
-  document.getElementById('txBox').classList.remove('on');
-  document.getElementById('recLbl').textContent='grabar idea';
-}
-function resetRecUI(){
+  if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
+  // Reset UI
   document.getElementById('recWrap').classList.remove('recording');
   document.getElementById('recStopBtn').classList.remove('visible');
-}
-
-/* ── GEMINI AUDIO API ────────────────────────────────── */
-async function analyzeAudio(blob){
-  const key=localStorage.getItem(AK);
-  if(!key){toast('Añade tu API Key primero');openOv('stOv');resetRec();return;}
-  isProc=true;
-  // Convert blob → base64
-  const buf=await blob.arrayBuffer();
-  const bytes=new Uint8Array(buf);
-  let bin='';
-  const CHUNK=8192;
-  for(let i=0;i<bytes.length;i+=CHUNK){
-    bin+=String.fromCharCode(...bytes.subarray(i,Math.min(i+CHUNK,bytes.length)));
-  }
-  const b64=btoa(bin);
-  const mime=blob.type||'audio/webm';
-  const prompt='Transcribe este audio en español y analiza la idea. Devuelve SOLO JSON sin markdown.\n\n{"transcript":"texto exacto de lo que se dice","title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
-  try{
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        contents:[{parts:[
-          {inline_data:{mime_type:mime,data:b64}},
-          {text:prompt}
-        ]}],
-        generationConfig:{maxOutputTokens:900,temperature:.4}
-      })
-    });
-    if(!r.ok){
-      const er=await r.json().catch(()=>({}));
-      toast(r.status===400||r.status===403?'API Key incorrecta':('Error: '+(er.error?.message||r.status)));
-      resetRec();return;
-    }
-    const d=await r.json();
-    const raw=d.candidates[0].content.parts[0].text.trim();
-    const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON');
-    const a=JSON.parse(m[0]);
-    // Show transcript
-    const b=document.getElementById('txBox');
-    if(a.transcript){b.textContent='"'+a.transcript+'"';b.classList.add('on');}
-    const idea={
-      id:Date.now().toString(),
-      transcript:a.transcript||'(audio)',
-      title:a.title||'Idea sin título',
-      category:(a.category||'otro').toLowerCase(),
-      summary:a.summary||'',viability:a.viability||'',
-      similar:a.similar||'',monetization:a.monetization||'',
-      coins:Math.min(5,Math.max(1,parseInt(a.coins)||3)),
-      date:new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'short'}),
-      dateISO:new Date().toISOString()
-    };
-    ideas.unshift(idea);saveIdeas();
-    const savedCat=idea.category;
-    toast('¡Idea guardada!');
-    setTimeout(()=>{
-      gv('ideas');renderFolders();
-      setTimeout(()=>{
-        const el=document.getElementById('fr-'+savedCat);
-        if(el&&!el.classList.contains('open'))el.querySelector('.folder-hd').click();
-      },300);
-    },1200);
-  }catch(e){
-    toast('Error al analizar: '+e.message);
-    console.error(e);
-  }finally{
+  var text=txAccum.trim();
+  if(text.length>3){
+    document.getElementById('recLbl').textContent='analizando...';
+    analyzeText(text);
+  } else {
+    toast('No se detectó voz. Habla más cerca del móvil.');
     resetRec();
   }
 }
 
-/* ── GEMINI ──────────────────────────────────────────── */
-async function analyzeIdea(text){
+function showTx(t){ var b=document.getElementById('txBox'); b.textContent=t; b.classList.add('on'); }
+function resetRec(){ isProc=false; document.getElementById('recStopBtn').classList.remove('visible'); document.getElementById('recLbl').textContent='grabar idea'; document.getElementById('txBox').classList.remove('on'); }
+
+/* GEMINI TEXT API */
+async function analyzeText(text){
   const key=localStorage.getItem(AK);
-  if(!key){toast('A\u00f1ade tu API Key primero');openOv('stOv');return;}
+  if(!key){ toast('Añade tu API Key'); openOv('stOv'); resetRec(); return; }
   isProc=true;
-  document.getElementById('recLbl').textContent='analizando...';
-  const p='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"T\u00edtulo corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qu\u00e9 es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Similares existentes","monetization":"C\u00f3mo monetizar","coins":3}\n\ncoins 1-5';
+  showTx('"'+text+'"');
+  var prompt='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
   try{
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:p}]}],generationConfig:{maxOutputTokens:800,temperature:.4}})
+    var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:.3}})
     });
     if(!r.ok){
-      const er=await r.json().catch(()=>({}));
-      toast(r.status===400||r.status===403?'API Key incorrecta':('Error: '+(er.error?.message||r.status)));
-      resetRec();return;
+      var er=await r.json().catch(function(){return {};});
+      toast(r.status===403||r.status===400?'API Key incorrecta':('Error: '+(er.error&&er.error.message||r.status)));
+      resetRec(); return;
     }
-    const d=await r.json();
-    const raw=d.candidates[0].content.parts[0].text.trim();
-    const m=raw.match(/\{[\s\S]*\}/);if(!m)throw new Error('no JSON');
-    const a=JSON.parse(m[0]);
-    const idea={
-      id:Date.now().toString(),transcript:text,
-      title:a.title||'Idea sin t\u00edtulo',
+    var d=await r.json();
+    var raw=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'';
+    var m=raw.trim().match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('Gemini no devolvió JSON');
+    var a=JSON.parse(m[0]);
+    var idea={
+      id:Date.now().toString(), transcript:text,
+      title:a.title||'Idea sin título',
       category:(a.category||'otro').toLowerCase(),
-      summary:a.summary||'',viability:a.viability||'',
-      similar:a.similar||'',monetization:a.monetization||'',
+      summary:a.summary||'', viability:a.viability||'',
+      similar:a.similar||'', monetization:a.monetization||'',
       coins:Math.min(5,Math.max(1,parseInt(a.coins)||3)),
       date:new Date().toLocaleDateString('es-ES',{day:'2-digit',month:'short'}),
       dateISO:new Date().toISOString()
     };
-    ideas.unshift(idea);saveIdeas();
-    const savedCat=idea.category;
+    ideas.unshift(idea); saveIdeas();
     toast('\u00a1Idea guardada!');
-    setTimeout(()=>{ gv('ideas'); renderFolders(); setTimeout(()=>{ const el=document.getElementById('fr-'+savedCat); if(el&&!el.classList.contains('open'))el.querySelector('.folder-hd').click(); },300); },1200);
-    document.getElementById('txBox').classList.remove('on');
-  }catch(e){toast('Error al analizar');console.error(e);}
-  finally{resetRec();}
+    var cat=idea.category;
+    setTimeout(function(){
+      gv('ideas'); renderFolders();
+      setTimeout(function(){
+        var el=document.getElementById('fr-'+cat);
+        if(el&&!el.classList.contains('open')) el.querySelector('.folder-hd').click();
+      },300);
+    },1200);
+  }catch(e){ toast('Error: '+e.message); console.error(e); }
+  finally{ resetRec(); }
 }
-
-/* ── FOLDERS ─────────────────────────────────────────── */
-const FOLDER_SVG='<svg viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg"><path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/></svg>';
-
+/* FOLDERS */
 function renderFolders(){
-  const wrap=document.getElementById('foldersList');
-  const order=['musica','app','web','negocio','otro'];
-  wrap.innerHTML=order.map(cat=>{
-    const label=CATS[cat].label;
-    const bucket=ideas.filter(i=>i.category===cat);
-    const countStr=bucket.length>0?' '+bucket.length:'';
-    const itemsHTML=bucket.length===0
-      ?'<div class="folder-empty">sin ideas a\u00fan</div>'
-      :bucket.map(i=>'<div class="idea-item" onclick="openIdea(\''+i.id+'\')">'+esc(i.title)+'</div>').join('');
-    return '<div class="folder-row" id="fr-'+cat+'">'
-      +'<div class="folder-hd" onclick="togF(\''+cat+'\')">'
-      +'<svg class="fsvg" viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg"><path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/></svg>'
-      +'<span class="folder-name">'+label+'</span><span class="folder-count">'+countStr+'</span>'
-      +'</div>'
-      +'<div class="folder-items">'+itemsHTML+'</div>'
-      +'</div>';
-  }).join('');
+  var wrap=document.getElementById('foldersList');
+  var cats=['musica','app','web','negocio','otro'];
+  var html2='';
+  cats.forEach(function(cat){
+    var lbl=CATS[cat].label;
+    var bucket=ideas.filter(function(i){return i.category===cat;});
+    var cnt=bucket.length>0?' '+bucket.length:'';
+    var fsvg='<svg class="fsvg" viewBox="0 0 31.46 23.59" xmlns="http://www.w3.org/2000/svg"><path fill="#e62044" d="M31.04,8.8c-.42-.59-1.1-.93-1.83-.93h-2.25v-2.25c0-1.24-1.01-2.25-2.25-2.25h-9.74L11.09.45c-.39-.29-.86-.45-1.35-.45H2.25C1.01,0,0,1.01,0,2.25v20.22h0c0,.62.5,1.12,1.12,1.12h25.15c.48,0,.91-.31,1.07-.77l4-12c.23-.69.11-1.44-.31-2.03ZM9.74,2.25l4.19,3.15c.19.15.43.22.67.22h10.11v2.25H6.43c-.97,0-1.83.62-2.13,1.54l-2.05,6.15V2.25h7.49ZM25.47,21.35H2.68l3.75-11.23h22.78l-3.74,11.23Z"/></svg>';
+    var rows='';
+    if(bucket.length===0){
+      rows='<div class="folder-empty">sin ideas aún</div>';
+    } else {
+      bucket.forEach(function(idea){
+        rows+='<div class="idea-item" onclick="openIdea(this.dataset.id)" data-id="'+idea.id+'">'+esc(idea.title)+'</div>';
+      });
+    }
+    html2+='<div class="folder-row" id="fr-'+cat+'">';
+    html2+='<div class="folder-hd" onclick="togF(this.dataset.cat)" data-cat="'+cat+'">'+fsvg;
+    html2+='<span class="folder-name">'+lbl+'</span><span class="folder-count">'+cnt+'</span></div>';
+    html2+='<div class="folder-items">'+rows+'</div></div>';
+  });
+  wrap.innerHTML=html2;
 }
-function togF(cat){document.getElementById('fr-'+cat).classList.toggle('open');}
+function togF(cat){ document.getElementById('fr-'+cat).classList.toggle('open'); }
 
-/* ── SEARCH ──────────────────────────────────────────── */
+/* SEARCH */
 function doSearch(q){
   document.getElementById('sx').classList.toggle('on',q.length>0);
   const c=document.getElementById('sres');
-  if(!q.trim()){c.innerHTML='<div class="shint">Empieza a escribir para buscar</div>';return;}
-  const lo=q.toLowerCase();
-  const res=ideas.filter(i=>i.title.toLowerCase().includes(lo)||i.summary.toLowerCase().includes(lo)||i.transcript.toLowerCase().includes(lo));
-  if(!res.length){c.innerHTML='<div class="shint">Sin resultados para <b>'+esc(q)+'</b></div>';return;}
-  c.innerHTML=res.map(i=>'<div class="sc" onclick="openIdea(\''+i.id+'\')">'
-    +'<div class="sc-t">'+esc(i.title)+'</div>'
-    +'<div class="sc-s">'+esc(i.summary.substring(0,90))+(i.summary.length>90?'\u2026':'')+'</div>'
-    +'<div class="sc-ft"><span class="sc-cat">'+CATS[i.category].label+'</span><span class="sc-d">'+i.date+'</span></div>'
-    +'</div>').join('');
+  if(!q.trim()){ c.innerHTML='<div class="shint">Empieza a escribir para buscar</div>'; return; }
+  const lo=q.toLowerCase(), res=ideas.filter(i=>i.title.toLowerCase().includes(lo)||i.summary.toLowerCase().includes(lo)||i.transcript.toLowerCase().includes(lo));
+  if(!res.length){ c.innerHTML='<div class="shint">Sin resultados para <b>'+esc(q)+'</b></div>'; return; }
+  var html3='';
+  res.forEach(function(i){
+    html3+='<div class="sc" onclick="openIdea(this.dataset.id)" data-id="'+i.id+'">';
+    html3+='<div class="sc-t">'+esc(i.title)+'</div>';
+    html3+='<div class="sc-s">'+esc(i.summary.substring(0,90))+(i.summary.length>90?'…':'')+'</div>';
+    html3+='<div class="sc-ft"><span class="sc-cat">'+CATS[i.category].label+'</span><span class="sc-d">'+i.date+'</span></div></div>';
+  });
+  c.innerHTML=html3;
 }
-function clrSearch(){document.getElementById('sinp').value='';document.getElementById('sx').classList.remove('on');doSearch('');}
+function clrSearch(){ document.getElementById('sinp').value=''; document.getElementById('sx').classList.remove('on'); doSearch(''); }
 
-/* ── DETAIL ──────────────────────────────────────────── */
+/* DETAIL */
 function openIdea(id){
-  const i=ideas.find(x=>x.id===id);if(!i)return;curId=id;
-  document.getElementById('dCatName').textContent=CATS[i.category].label;
+  const i=ideas.find(x=>x.id===id); if(!i) return; curId=id;
+  document.getElementById('dCatName').textContent=CATS[i.category]?.label||i.category;
   document.getElementById('dTitle').textContent=i.title;
   document.getElementById('dBodyText').textContent=i.summary;
   document.getElementById('dVia').innerHTML=esc(i.viability)+(i.similar?'<br><small style="color:var(--muted)">Parecido: '+esc(i.similar)+'</small>':'');
   document.getElementById('dMon').textContent=i.monetization;
   document.getElementById('dOrig').textContent=i.transcript;
-  document.getElementById('dOrig').classList.remove('on');
-  document.getElementById('dotg').classList.remove('open');
+  document.getElementById('dOrig').classList.remove('on'); document.getElementById('dotg').classList.remove('open');
   openOv('detOv');
-  // Switch to inner nav when opening detail from home
   if(curView==='grabar') gv('ideas');
 }
-function togOrig(){document.getElementById('dotg').classList.toggle('open');document.getElementById('dOrig').classList.toggle('on');}
-function delIdea(){
-  if(!curId)return;
-  ideas=ideas.filter(i=>i.id!==curId);saveIdeas();renderFolders();doSearch(document.getElementById('sinp').value);
-  closeOv('detOv');toast('Idea borrada');
-}
+function togOrig(){ document.getElementById('dotg').classList.toggle('open'); document.getElementById('dOrig').classList.toggle('on'); }
+function delIdea(){ if(!curId) return; ideas=ideas.filter(i=>i.id!==curId); saveIdeas(); renderFolders(); doSearch(document.getElementById('sinp').value); closeOv('detOv'); toast('Idea borrada'); }
 
-/* ── EDIT ────────────────────────────────────────────── */
+/* EDIT */
 function openEdit(){
-  const i=ideas.find(x=>x.id===curId);if(!i)return;
-  document.getElementById('eT').value=i.title;
-  document.getElementById('eCat').value=i.category;
-  document.getElementById('eS').value=i.summary;
-  document.getElementById('eV').value=i.viability;
-  document.getElementById('eSim').value=i.similar;
-  document.getElementById('eM').value=i.monetization;
-  editCoins=i.coins;
-  document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===editCoins));
-  openOv('edOv');
+  const i=ideas.find(x=>x.id===curId); if(!i) return;
+  document.getElementById('eT').value=i.title; document.getElementById('eCat').value=i.category;
+  document.getElementById('eS').value=i.summary; document.getElementById('eV').value=i.viability;
+  document.getElementById('eSim').value=i.similar; document.getElementById('eM').value=i.monetization;
+  editCoins=i.coins; document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===editCoins)); openOv('edOv');
 }
-function pickC(v){editCoins=v;document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===v));}
+function pickC(v){ editCoins=v; document.querySelectorAll('.cp').forEach(p=>p.classList.toggle('on',parseInt(p.dataset.v)===v)); }
 function saveEdit(){
-  const i=ideas.find(x=>x.id===curId);if(!i)return;
-  i.title=document.getElementById('eT').value.trim()||i.title;
-  i.category=document.getElementById('eCat').value;
-  i.summary=document.getElementById('eS').value.trim();
-  i.viability=document.getElementById('eV').value.trim();
-  i.similar=document.getElementById('eSim').value.trim();
-  i.monetization=document.getElementById('eM').value.trim();
-  i.coins=editCoins;
-  saveIdeas();renderFolders();doSearch(document.getElementById('sinp').value);
-  closeOv('edOv');openIdea(curId);toast('Guardado \u2713');
+  const i=ideas.find(x=>x.id===curId); if(!i) return;
+  i.title=document.getElementById('eT').value.trim()||i.title; i.category=document.getElementById('eCat').value;
+  i.summary=document.getElementById('eS').value.trim(); i.viability=document.getElementById('eV').value.trim();
+  i.similar=document.getElementById('eSim').value.trim(); i.monetization=document.getElementById('eM').value.trim(); i.coins=editCoins;
+  saveIdeas(); renderFolders(); doSearch(document.getElementById('sinp').value); closeOv('edOv'); openIdea(curId); toast('Guardado \u2713');
 }
 
-/* ── SHARE ───────────────────────────────────────────── */
-function openShr(){
-  const i=ideas.find(x=>x.id===curId);if(!i)return;
-  document.getElementById('shrT').textContent=i.title;
-  if(navigator.share)document.getElementById('ntvShr').style.display='flex';
-  openOv('shrOv');
-}
+/* SHARE */
+function openShr(){ const i=ideas.find(x=>x.id===curId); if(!i) return; document.getElementById('shrT').textContent=i.title; if(navigator.share) document.getElementById('ntvShr').style.display='flex'; openOv('shrOv'); }
 function shrVia(m){
-  const i=ideas.find(x=>x.id===curId);if(!i)return;
+  const i=ideas.find(x=>x.id===curId); if(!i) return;
   const t='\ud83d\udca1 *'+i.title+'*\n\n'+i.summary+'\n\n\ud83d\udcc8 Viabilidad: '+i.viability+'\n\ud83d\udcb0 Monetizaci\u00f3n: '+i.monetization+'\n\n_via mimemo_';
-  if(m==='whatsapp'){window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');closeOv('shrOv');}
-  else if(m==='email'){window.open('mailto:?subject='+encodeURIComponent(i.title)+'&body='+encodeURIComponent(t),'_blank');closeOv('shrOv');}
-  else if(m==='copy'){navigator.clipboard.writeText(t).then(()=>{toast('Copiado \u2713');closeOv('shrOv');}).catch(()=>toast('No se pudo copiar'));}
-  else if(m==='native'&&navigator.share){navigator.share({title:i.title,text:t}).catch(()=>{});closeOv('shrOv');}
+  if(m==='whatsapp'){ window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank'); closeOv('shrOv'); }
+  else if(m==='email'){ window.open('mailto:?subject='+encodeURIComponent(i.title)+'&body='+encodeURIComponent(t),'_blank'); closeOv('shrOv'); }
+  else if(m==='copy'){ navigator.clipboard.writeText(t).then(()=>{ toast('Copiado \u2713'); closeOv('shrOv'); }).catch(()=>toast('No se pudo copiar')); }
+  else if(m==='native'&&navigator.share){ navigator.share({title:i.title,text:t}).catch(()=>{}); closeOv('shrOv'); }
 }
 
-/* ── EXPORT ──────────────────────────────────────────── */
+/* EXPORT */
 function doExp(fmt){
-  let content,filename,mime;
-  if(fmt==='txt'){
-    content=ideas.map((i,n)=>'IDEA '+(n+1)+': '+i.title.toUpperCase()+'\n'+i.date+' | '+i.category+'\n\nQU\u00c9 ES:\n'+i.summary+'\n\nVIABILIDAD:\n'+i.viability+'\n\nMONETIZACI\u00d3N:\n'+i.monetization+'\n\nIDEA ORIGINAL:\n'+i.transcript).join('\n\n'+'='.repeat(40)+'\n\n');
-    filename='mimemo-ideas.txt';mime='text/plain';
-  }else{
-    content=JSON.stringify(ideas,null,2);filename='mimemo-ideas.json';mime='application/json';
-  }
-  const blob=new Blob([content],{type:mime}),url=URL.createObjectURL(blob);
-  Object.assign(document.createElement('a'),{href:url,download:filename}).click();
-  URL.revokeObjectURL(url);
-  closeOv('expOv');closeOv('stOv');toast('Descargando...');
+  const c=fmt==='txt'?ideas.map((i,n)=>'IDEA '+(n+1)+': '+i.title.toUpperCase()+'\n'+i.date+' | '+i.category+'\n\nQU\u00c9 ES:\n'+i.summary+'\n\nVIABILIDAD:\n'+i.viability+'\n\nMONETIZACI\u00d3N:\n'+i.monetization+'\n\nIDEA ORIGINAL:\n'+i.transcript).join('\n\n'+'='.repeat(40)+'\n\n'):JSON.stringify(ideas,null,2);
+  const fn=fmt==='txt'?'mimemo-ideas.txt':'mimemo-ideas.json', mime=fmt==='txt'?'text/plain':'application/json';
+  const blob=new Blob([c],{type:mime}), url=URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'),{href:url,download:fn}).click(); URL.revokeObjectURL(url);
+  closeOv('expOv'); closeOv('stOv'); toast('Descargando...');
 }
 
-/* ── SETTINGS ────────────────────────────────────────── */
+/* SETTINGS */
 function saveSt(){
   const k=document.getElementById('apiKI').value.trim();
-  if(k){localStorage.setItem(AK,k);toast('API Key guardada \u2713');}
-  else{localStorage.removeItem(AK);toast('API Key eliminada');}
-  closeOv('stOv');
-  document.getElementById('apiBan').classList.toggle('hidden',!!k);
+  if(k){ localStorage.setItem(AK,k); toast('API Key guardada \u2713'); } else { localStorage.removeItem(AK); toast('API Key eliminada'); }
+  closeOv('stOv'); document.getElementById('apiBan').classList.toggle('hidden',!!k);
 }
 
-/* ── OVERLAYS ────────────────────────────────────────── */
-function openOv(id){document.getElementById(id).classList.add('open');}
-function closeOv(id){document.getElementById(id).classList.remove('open');}
-function ovClick(e,id){if(e.target===document.getElementById(id))closeOv(id);}
+/* OVERLAYS */
+function openOv(id){ document.getElementById(id).classList.add('open'); }
+function closeOv(id){ document.getElementById(id).classList.remove('open'); }
+function ovClick(e,id){ if(e.target===document.getElementById(id)) closeOv(id); }
 
-/* ── UTILS ───────────────────────────────────────────── */
-function saveIdeas(){localStorage.setItem(SK,JSON.stringify(ideas));}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+/* UTILS */
+function saveIdeas(){ localStorage.setItem(SK,JSON.stringify(ideas)); }
+function esc(s){ return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000); }
 
-/* ── INIT ────────────────────────────────────────────── */
+/* INIT */
 function init(){
   const raw=localStorage.getItem(SK)||localStorage.getItem('memo_ideas_v1')||localStorage.getItem('mimemo_ideas_v1');
   ideas=raw?JSON.parse(raw):[];
   document.getElementById('expCnt').textContent=ideas.length+' idea'+(ideas.length!==1?'s':'')+' guardadas';
   document.getElementById('apiBan').classList.toggle('hidden',!!localStorage.getItem(AK));
   document.getElementById('apiKI').value=localStorage.getItem(AK)||'';
-  if(navigator.share)document.getElementById('ntvShr').style.display='flex';
-  // Wave
-  window.addEventListener('resize',resizeCvs);
-  resizeCvs();
-  setTimeout(resizeCvs,100);
-  setTimeout(resizeCvs,500);
+  if(navigator.share) document.getElementById('ntvShr').style.display='flex';
+  window.addEventListener('resize',resizeCvs); resizeCvs(); setTimeout(resizeCvs,200); setTimeout(resizeCvs,600);
   requestAnimationFrame(drawWave);
-  // Gyroscope
   if(typeof DeviceOrientationEvent!=='undefined'){
     if(typeof DeviceOrientationEvent.requestPermission==='function'){
-      document.addEventListener('click',async function g(){
-        try{if((await DeviceOrientationEvent.requestPermission())==='granted')setupGyro();}catch(e){}
-        document.removeEventListener('click',g);
-      },{once:true});
-    }else setupGyro();
+      document.addEventListener('click',async function g(){ try{ if((await DeviceOrientationEvent.requestPermission())==='granted') setupGyro(); }catch(e){} document.removeEventListener('click',g); },{once:true});
+    } else { setupGyro(); }
   }
   runSplash();
-  if(navigator.serviceWorker)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 init();
 </script>
