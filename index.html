@@ -650,35 +650,8 @@ function gv(name){
   if(name==='ideas') renderFolders();
 }
 
-/* RECORDING — Web Speech API transcribe → Gemini analiza texto */
-let isRec=false, isProc=false, recog=null, txAccum='', micStream=null;
-
-function setupSpeech(){
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR) return false;
-  recog=new SR();
-  recog.continuous=true;
-  recog.interimResults=true;
-  recog.lang='es-ES';
-  recog.onresult=function(e){
-    var final='', interim='';
-    for(var i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal) final+=e.results[i][0].transcript+' ';
-      else interim+=e.results[i][0].transcript;
-    }
-    if(final) txAccum+=final;
-    var showing=(txAccum+interim).trim();
-    if(showing){ showTx('"'+showing+'"'); }
-  };
-  recog.onerror=function(e){
-    if(e.error==='not-allowed') toast('Permiso de micrófono denegado');
-  };
-  recog.onend=function(){
-    // Android stops after silence — restart if still recording
-    if(isRec){ try{ recog.start(); }catch(ex){} }
-  };
-  return true;
-}
+/* RECORDING — MediaRecorder → Gemini Audio API (Chrome Android compatible) */
+let isRec=false, isProc=false, mediaRec=null, audioChunks=[], micStream=null;
 
 function toggleRec(){ if(isProc) return; isRec ? doStop() : startRec(); }
 
@@ -686,25 +659,34 @@ async function startRec(){
   if(isProc) return;
   const key=localStorage.getItem(AK);
   if(!key){ toast('Configura tu API Key en ajustes'); openOv('stOv'); return; }
-  // Setup speech if not done
-  if(!recog && !setupSpeech()){
-    toast('Tu navegador no soporta reconocimiento de voz');
-    return;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast('Tu navegador no soporta grabación de audio'); return;
   }
-  txAccum='';
-  document.getElementById('txBox').classList.remove('on');
-  // Get mic for membrane animation
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
     micStream=stream;
     startMembrane(stream);
-  }catch(e){ /* membrane won't animate but recording still works */ }
-  // Start speech recognition
-  try{ recog.start(); }catch(e){}
-  isRec=true;
-  document.getElementById('recWrap').classList.add('recording');
-  document.getElementById('recStopBtn').classList.add('visible');
-  document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
+    audioChunks=[];
+    // Detectar formato soportado (Chrome Android usa webm/opus)
+    var mimeType='audio/webm';
+    if(window.MediaRecorder){
+      if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType='audio/webm;codecs=opus';
+      else if(MediaRecorder.isTypeSupported('audio/webm')) mimeType='audio/webm';
+      else if(MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mimeType='audio/ogg;codecs=opus';
+      else if(MediaRecorder.isTypeSupported('audio/mp4')) mimeType='audio/mp4';
+    }
+    mediaRec=new MediaRecorder(stream,{mimeType:mimeType});
+    mediaRec.ondataavailable=function(e){ if(e.data&&e.data.size>0) audioChunks.push(e.data); };
+    mediaRec.start(250);
+    isRec=true;
+    document.getElementById('recWrap').classList.add('recording');
+    document.getElementById('recStopBtn').classList.add('visible');
+    document.getElementById('recLbl').textContent='toca el cuadrado rojo para detener';
+    showTx('grabando...');
+  }catch(e){
+    if(e.name==='NotAllowedError'||e.name==='PermissionDeniedError') toast('Permiso de micrófono denegado');
+    else toast('Error al acceder al micrófono');
+  }
 }
 
 function stopRec(){ doStop(); }
@@ -712,19 +694,24 @@ function stopRec(){ doStop(); }
 function doStop(){
   if(!isRec) return;
   isRec=false;
-  try{ recog.stop(); }catch(e){}
-  // Stop membrane
   stopMembrane();
-  if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
-  // Reset UI
   document.getElementById('recWrap').classList.remove('recording');
   document.getElementById('recStopBtn').classList.remove('visible');
-  var text=txAccum.trim();
-  if(text.length>3){
-    document.getElementById('recLbl').textContent='analizando...';
-    analyzeText(text);
+  if(mediaRec&&mediaRec.state!=='inactive'){
+    mediaRec.onstop=function(){
+      var mimeType=mediaRec.mimeType||'audio/webm';
+      var blob=new Blob(audioChunks,{type:mimeType});
+      if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
+      if(blob.size<1500){
+        toast('No se detectó voz. Habla más cerca del móvil.');
+        resetRec(); return;
+      }
+      document.getElementById('recLbl').textContent='analizando...';
+      analyzeAudio(blob);
+    };
+    mediaRec.stop();
   } else {
-    toast('No se detectó voz. Habla más cerca del móvil.');
+    if(micStream){ micStream.getTracks().forEach(function(t){ t.stop(); }); micStream=null; }
     resetRec();
   }
 }
@@ -732,18 +719,70 @@ function doStop(){
 function showTx(t){ var b=document.getElementById('txBox'); b.textContent=t; b.classList.add('on'); }
 function resetRec(){ isProc=false; document.getElementById('recStopBtn').classList.remove('visible'); document.getElementById('recLbl').textContent='grabar idea'; document.getElementById('txBox').classList.remove('on'); }
 
-/* GEMINI TEXT API */
-async function analyzeText(text){
+function blobToBase64(blob){
+  return new Promise(function(resolve,reject){
+    var reader=new FileReader();
+    reader.onloadend=function(){ resolve(reader.result.split(',')[1]); };
+    reader.onerror=reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Convierte cualquier audio (webm/ogg/mp4) a WAV PCM 16-bit mono
+// Gemini soporta audio/wav pero NO audio/webm
+function blobToWav(blob){
+  return new Promise(function(resolve,reject){
+    var ctx=new (window.AudioContext||window.webkitAudioContext)();
+    blob.arrayBuffer().then(function(ab){
+      ctx.decodeAudioData(ab,function(audioBuf){
+        ctx.close();
+        var sr=audioBuf.sampleRate, len=audioBuf.length;
+        var ch=audioBuf.getChannelData(0);
+        if(audioBuf.numberOfChannels>1){
+          var ch2=audioBuf.getChannelData(1);
+          var mono=new Float32Array(len);
+          for(var i=0;i<len;i++) mono[i]=(ch[i]+ch2[i])/2;
+          ch=mono;
+        }
+        var wavBuf=new ArrayBuffer(44+len*2);
+        var dv=new DataView(wavBuf);
+        function ws(off,s){for(var i=0;i<s.length;i++)dv.setUint8(off+i,s.charCodeAt(i));}
+        ws(0,'RIFF'); dv.setUint32(4,36+len*2,true);
+        ws(8,'WAVE'); ws(12,'fmt ');
+        dv.setUint32(16,16,true); dv.setUint16(20,1,true);
+        dv.setUint16(22,1,true); dv.setUint32(24,sr,true);
+        dv.setUint32(28,sr*2,true); dv.setUint16(32,2,true);
+        dv.setUint16(34,16,true); ws(36,'data'); dv.setUint32(40,len*2,true);
+        var off=44;
+        for(var i=0;i<len;i++,off+=2){
+          var s=Math.max(-1,Math.min(1,ch[i]));
+          dv.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);
+        }
+        resolve(new Blob([wavBuf],{type:'audio/wav'}));
+      },reject);
+    }).catch(reject);
+  });
+}
+
+/* GEMINI AUDIO API — transcribe + analiza en una sola llamada */
+async function analyzeAudio(blob){
   const key=localStorage.getItem(AK);
   if(!key){ toast('Añade tu API Key'); openOv('stOv'); resetRec(); return; }
   isProc=true;
-  showTx('"'+text+'"');
-  var prompt='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
   try{
+    var wavBlob=await blobToWav(blob);
+    var b64=await blobToBase64(wavBlob);
+    var prompt='Transcribe exactamente lo que se dice en este audio en español. Luego analiza la idea. Devuelve SOLO JSON sin markdown:\n{"transcript":"Transcripción exacta del audio","title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
     var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:.3}})
+      body:JSON.stringify({
+        contents:[{parts:[
+          {inlineData:{mimeType:'audio/wav',data:b64}},
+          {text:prompt}
+        ]}],
+        generationConfig:{maxOutputTokens:900,temperature:.3}
+      })
     });
     if(!r.ok){
       var er=await r.json().catch(function(){return {};});
@@ -755,6 +794,8 @@ async function analyzeText(text){
     var m=raw.trim().match(/\{[\s\S]*\}/);
     if(!m) throw new Error('Gemini no devolvió JSON');
     var a=JSON.parse(m[0]);
+    var text=a.transcript||'(sin transcripción)';
+    showTx('"'+text+'"');
     var idea={
       id:Date.now().toString(), transcript:text,
       title:a.title||'Idea sin título',
