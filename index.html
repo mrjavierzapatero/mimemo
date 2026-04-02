@@ -60,13 +60,24 @@
     .g-icon{width:60px;height:60px;margin-bottom:12px;
       margin-top:calc(max(env(safe-area-inset-top,16px),16px) + 44px);}
 
-    .g-tagline{font-size:22px;font-weight:700;color:var(--coral);
-      text-align:center;line-height:1.25;margin-bottom:30px;}
+    .g-tagline{font-size:17px;font-weight:400;color:var(--coral);
+      text-align:center;line-height:1.3;margin-bottom:30px;}
 
-    /* rec_button container — position:relative so circles can animate */
+    /* rec_button container — overflow:hidden keeps membrane inside */
     .rec-wrap{position:relative;width:160px;height:160px;
-      cursor:pointer;margin-bottom:18px;flex-shrink:0;}
-    .rec-wrap:active{opacity:.88;}
+      cursor:pointer;margin-bottom:18px;flex-shrink:0;
+      border-radius:50%;overflow:hidden;}
+
+    /* Stop square shown while recording */
+    .rec-stop{
+      position:absolute;top:50%;left:50%;
+      transform:translate(-50%,-50%);
+      width:36px;height:36px;border-radius:7px;
+      background:rgba(255,255,255,.9);
+      opacity:0;pointer-events:none;z-index:5;
+      transition:opacity .2s;
+    }
+    .recording .rec-stop{opacity:1;}
 
     /* Each circle is absolutely positioned, centred, animates independently */
     .rec-wrap svg{position:absolute;top:0;left:0;width:160px;height:160px;}
@@ -162,6 +173,7 @@
       position:fixed;bottom:0;left:0;right:0;
       height:calc(var(--footer) + env(safe-area-inset-bottom,0px));
       z-index:40;
+      background:var(--b1); /* fallback if canvas fails */
     }
     #waveCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
 
@@ -178,6 +190,7 @@
       font-family:'Roboto',sans-serif;text-transform:lowercase;
       transition:color .2s;}
     .nt i{font-size:26px;transition:transform .18s;display:block;}
+    .nt svg{transition:transform .18s;}
     .nt.active{color:#fff;}
     .nt.active i{transform:scale(1.1);}
     .nt:active i{transform:scale(.82);}
@@ -345,6 +358,8 @@
       <div class="ripple"></div>
       <div class="ripple"></div>
       <div class="ripple"></div>
+      <!-- Stop square overlay -->
+      <div class="rec-stop"></div>
       <!-- SVG with individually addressable circles for membrane effect -->
       <svg id="recSvg" viewBox="0 0 105.18 105.18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <defs>
@@ -387,7 +402,7 @@
     <div class="bh">
       <div class="bh-t">buscar</div>
       <div class="sbox">
-        <i class="ph ph-magnifying-glass"></i>
+        <svg viewBox="0 0 24.84 24.84" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;fill:currentColor"><path d="M24.56,23.21l-5.97-5.97c3.72-4.46,3.11-11.09-1.35-14.8C12.78-1.28,6.15-.68,2.43,3.78c-3.72,4.46-3.11,11.09,1.35,14.8,3.9,3.25,9.56,3.25,13.45,0l5.97,5.97c.37.37.98.37,1.35,0,.37-.37.37-.98,0-1.35ZM1.94,10.52C1.94,5.78,5.78,1.94,10.52,1.94s8.59,3.85,8.59,8.59-3.85,8.59-8.59,8.59c-4.74,0-8.58-3.85-8.59-8.59Z"/></svg>
         <input class="sinp" id="sinp" type="search" placeholder="busca entre tus ideas..." oninput="doSearch(this.value)">
         <button class="sx" id="sx" onclick="clrSearch()"><i class="ph ph-x"></i></button>
       </div>
@@ -405,17 +420,20 @@
     <!-- HOME nav: single centered icon -->
     <nav class="water-nav" id="navHome" style="justify-content:center;">
       <button class="nt active" onclick="gv('ideas')">
-        <i class="ph ph-house"></i>mis ideas
+        <svg viewBox="0 0 28.63 23.86" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;fill:currentColor"><path d="M27.68,21.95h-1.91v-8.59l.28.28c.37.37.98.37,1.35,0,.37-.37.37-.98,0-1.35L15.66.56c-.75-.74-1.95-.74-2.7,0L1.23,12.29c-.37.37-.37.98,0,1.35.37.37.98.37,1.35,0l.28-.28v8.59H.95c-.53,0-.95.43-.95.95s.43.95.95.95h26.72c.53,0,.95-.43.95-.95s-.43-.95-.95-.95ZM4.77,11.45L14.31,1.91l9.54,9.54v10.5h-5.73v-6.68c0-.53-.43-.95-.95-.95h-5.73c-.53,0-.95.43-.95.95v6.68h-5.73v-10.5ZM16.22,21.95h-3.82v-5.73h3.82v5.73Z"/></svg>
+        mis ideas
       </button>
     </nav>
 
     <!-- INNER nav: mis ideas + buscar -->
     <nav class="water-nav" id="navInner" style="display:none;">
       <button class="nt" id="tabI" onclick="gv('ideas')">
-        <i class="ph ph-house"></i>mis ideas
+        <svg viewBox="0 0 28.63 23.86" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;fill:currentColor"><path d="M27.68,21.95h-1.91v-8.59l.28.28c.37.37.98.37,1.35,0,.37-.37.37-.98,0-1.35L15.66.56c-.75-.74-1.95-.74-2.7,0L1.23,12.29c-.37.37-.37.98,0,1.35.37.37.98.37,1.35,0l.28-.28v8.59H.95c-.53,0-.95.43-.95.95s.43.95.95.95h26.72c.53,0,.95-.43.95-.95s-.43-.95-.95-.95ZM4.77,11.45L14.31,1.91l9.54,9.54v10.5h-5.73v-6.68c0-.53-.43-.95-.95-.95h-5.73c-.53,0-.95.43-.95.95v6.68h-5.73v-10.5ZM16.22,21.95h-3.82v-5.73h3.82v5.73Z"/></svg>
+        mis ideas
       </button>
       <button class="nt" id="tabB" onclick="gv('buscar')">
-        <i class="ph ph-magnifying-glass"></i>buscar
+        <svg viewBox="0 0 24.84 24.84" xmlns="http://www.w3.org/2000/svg" style="width:26px;height:26px;fill:currentColor"><path d="M24.56,23.21l-5.97-5.97c3.72-4.46,3.11-11.09-1.35-14.8C12.78-1.28,6.15-.68,2.43,3.78c-3.72,4.46-3.11,11.09,1.35,14.8,3.9,3.25,9.56,3.25,13.45,0l5.97,5.97c.37.37.98.37,1.35,0,.37-.37.37-.98,0-1.35ZM1.94,10.52C1.94,5.78,5.78,1.94,10.52,1.94s8.59,3.85,8.59,8.59-3.85,8.59-8.59,8.59c-4.74,0-8.58-3.85-8.59-8.59Z"/></svg>
+        buscar
       </button>
     </nav>
   </div>
@@ -622,8 +640,9 @@ function animateMembrane() {
 const CVS=document.getElementById('waveCanvas');
 const CTX2=CVS.getContext('2d');
 function resizeCvs(){
+  const foot=document.getElementById('waterFoot');
   CVS.width=window.innerWidth;
-  CVS.height=document.getElementById('waterFoot').offsetHeight;
+  CVS.height=foot.offsetHeight||136;
 }
 function drawWave(){
   const w=CVS.width, h=CVS.height;
@@ -702,8 +721,16 @@ function setupSpeech(){
     const b=document.getElementById('txBox');
     b.textContent='"'+txText.trim()+'"';b.classList.add('on');
   };
-  recog.onerror=e=>{if(e.error==='not-allowed')toast('Necesitas dar permiso al micr\u00f3fono');stopRec();};
-  recog.onend=()=>{if(isRec)stopRec();};
+  recog.onerror=e=>{
+    if(e.error==='not-allowed'||e.error==='permission-denied')toast('Necesitas dar permiso al micr\u00f3fono');
+    if(isRec)stopRec();
+  };
+  recog.onend=()=>{
+    // On Android, recognition stops after silence — restart if still recording
+    if(isRec){
+      try{recog.start();}catch(e){stopRec();}
+    }
+  };
 }
 
 function toggleRec(){if(isProc)return;isRec?stopRec():startRec();}
@@ -919,7 +946,10 @@ function init(){
   if(navigator.share)document.getElementById('ntvShr').style.display='flex';
   // Wave
   window.addEventListener('resize',resizeCvs);
-  resizeCvs();requestAnimationFrame(drawWave);
+  resizeCvs();
+  setTimeout(resizeCvs,100);
+  setTimeout(resizeCvs,500);
+  requestAnimationFrame(drawWave);
   // Gyroscope
   if(typeof DeviceOrientationEvent!=='undefined'){
     if(typeof DeviceOrientationEvent.requestPermission==='function'){
