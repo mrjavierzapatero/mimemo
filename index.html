@@ -738,9 +738,10 @@ function setupSpeech(){
       const t=e.results[i][0].transcript;
       e.results[i].isFinal?(f+=t+' '):(i2+=t);
     }
-    txText=f||i2;
+    if(f) txText+=f;
+    const showing=txText+(i2?' '+i2:'');
     const b=document.getElementById('txBox');
-    b.textContent='"'+txText.trim()+'"';b.classList.add('on');
+    b.textContent='"'+showing.trim()+'"';b.classList.add('on');
   };
   recog.onerror=e=>{
     if(e.error==='not-allowed'||e.error==='permission-denied')
@@ -764,14 +765,27 @@ let isStopping=false;
 function toggleRec(){if(isProc)return;isRec?doStop():startRec();}
 
 function startRec(){
-  if(!recog||isProc)return;
+  if(isProc)return;
+  // Check speech support
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ toast('Tu navegador no soporta voz. Usa Chrome.'); return; }
+  if(!recog){ setupSpeech(); }
   txText='';isStopping=false;
-  const b=document.getElementById('txBox');b.textContent='';b.classList.remove('on');
+  const b=document.getElementById('txBox');
+  b.textContent='Escuchando...';b.classList.add('on');
   isRec=true;
-  try{recog.start();}catch(e){}
+  try{
+    recog.start();
+    toast('Micrófono activo - habla ahora');
+  }catch(e){
+    toast('Error: '+e.message);
+    isRec=false;
+    b.classList.remove('on');
+    return;
+  }
   document.getElementById('recWrap').classList.add('recording');
   document.getElementById('recStopBtn').classList.add('visible');
-  document.getElementById('recLbl').textContent='tocando cuadrado rojo para detener';
+  document.getElementById('recLbl').textContent='habla ahora — toca el cuadrado rojo para detener';
   startMembrane();
 }
 
