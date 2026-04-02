@@ -1,7 +1,6 @@
-const CACHE = 'mimemo-v4';
+const CACHE = 'mimemo-v5';
 const ASSETS = [
   './',
-  './index.html',
   './manifest.json',
   './assets/icons/icon-192.png',
   './assets/icons/icon-512.png',
@@ -16,21 +15,41 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
+      .then(clients => clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' })))
   );
 });
 
 self.addEventListener('fetch', e => {
-  // Network-first for API calls
-  if (e.request.url.includes('generativelanguage.googleapis.com') ||
-      e.request.url.includes('fonts.googleapis.com') ||
-      e.request.url.includes('fonts.gstatic.com')) {
+  const url = e.request.url;
+
+  // Siempre red para APIs externas
+  if (url.includes('generativelanguage.googleapis.com') ||
+      url.includes('fonts.googleapis.com') ||
+      url.includes('fonts.gstatic.com') ||
+      url.includes('unpkg.com')) {
     e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
     return;
   }
-  // Cache-first for app assets
+
+  // index.html: siempre red primero — garantiza código actualizado
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request)
+        .then(res => {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Resto de assets: cache-first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
       if (res.ok) {

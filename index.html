@@ -938,7 +938,13 @@ function init(){
     } else { setupGyro(); }
   }
   runSplash();
-  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if(navigator.serviceWorker){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    // Cuando el SW nuevo activa, recargar para servir el código fresco
+    navigator.serviceWorker.addEventListener('message', function(e){
+      if(e.data && e.data.type==='SW_UPDATED') window.location.reload();
+    });
+  }
 }
 init();
 </script>
