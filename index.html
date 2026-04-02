@@ -816,8 +816,22 @@ async function analyzeAudio(blob){
         if(el&&!el.classList.contains('open')) el.querySelector('.folder-hd').click();
       },300);
     },1200);
-  }catch(e){ toast('Error: '+e.message); console.error(e); }
+  }catch(e){ console.error(e); showDebugError(e); }
   finally{ resetRec(); }
+}
+
+function showDebugError(e){
+  var msg='ERROR:\n'+(e&&e.message?e.message:String(e));
+  if(e&&e.stack) msg+='\n\nSTACK:\n'+e.stack.slice(0,600);
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.85);color:#fff;font-size:13px;font-family:monospace;padding:20px;overflow:auto;white-space:pre-wrap;word-break:break-all;';
+  d.textContent=msg;
+  var btn=document.createElement('button');
+  btn.textContent='Cerrar';
+  btn.style.cssText='display:block;margin:16px 0 0;padding:10px 24px;background:#e62044;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;';
+  btn.onclick=function(){ document.body.removeChild(d); };
+  d.appendChild(btn);
+  document.body.appendChild(d);
 }
 /* FOLDERS */
 function renderFolders(){
