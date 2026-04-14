@@ -609,8 +609,7 @@
 <script>
 'use strict';
 const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1';
-const GM_MODELS=['gemini-2.0-flash','gemini-1.5-flash-002','gemini-1.5-flash-8b'];
-const GM_BASE='https://generativelanguage.googleapis.com/v1/models/';
+const GM_URL='https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent';
 const CATS={
   musica:{label:'m\u00fasica'},app:{label:'apps'},
   web:{label:'web'},negocio:{label:'negocios'},otro:{label:'miscel\u00e1nea'}
@@ -807,54 +806,32 @@ async function analyzeText(text){
   var requestBodyStr=JSON.stringify(requestBody);
   console.log('[mimemo] request body:', requestBodyStr);
 
-  // Probar modelos en orden hasta que uno responda 200
-  var modelErrors=[];
-  var r=null, bodyTxt='', usedModel='';
-
-  for(var mi=0; mi<GM_MODELS.length; mi++){
-    var model=GM_MODELS[mi];
-    var url=GM_BASE+model+':generateContent?key='+key;
-    console.log('[mimemo] intentando modelo:', model);
-    try{
-      r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:requestBodyStr});
-      bodyTxt=await r.text();
-      console.log('[mimemo]', model, '→ HTTP', r.status, r.statusText);
-      if(r.ok){ usedModel=model; break; }
-      // 404 o 400/403: anotar y probar siguiente
-      modelErrors.push(model+' → HTTP '+r.status+': '+(function(b){ try{ var j=JSON.parse(b); return j.error&&j.error.message?j.error.message:b.slice(0,120); }catch(x){ return b.slice(0,120); } })(bodyTxt));
-      r=null;
-    }catch(fe){
-      console.warn('[mimemo]', model, 'fetch exception:', fe.message);
-      modelErrors.push(model+' → excepción: '+fe.message);
-      r=null;
-    }
-  }
-
-  if(!r){
-    showGeminiError(['Ningún modelo disponible para esta API Key','','━━ intentos ━━'].concat(modelErrors));
-    resetRec(); return;
-  }
-
   try{
+    var r=await fetch(GM_URL+'?key='+key,{method:'POST',headers:{'Content-Type':'application/json'},body:requestBodyStr});
+    var bodyTxt=await r.text();
+    console.log('[mimemo] HTTP', r.status, r.statusText);
+    console.log('[mimemo] response body:', bodyTxt);
+
+    if(!r.ok){
+      var erLines=['━━ HTTP '+r.status+' '+r.statusText+' ━━','Key (últimos 8): ...'+key.slice(-8),''];
+      try{ var erJ=JSON.parse(bodyTxt); if(erJ.error){ erLines.push('mensaje: '+erJ.error.message); if(erJ.error.status) erLines.push('status:  '+erJ.error.status); erLines.push(''); } }catch(x){}
+      erLines.push('━━ body completo ━━'); erLines.push(bodyTxt);
+      showGeminiError(erLines); resetRec(); return;
+    }
+
     var d;
     try{ d=JSON.parse(bodyTxt); }
-    catch(pe){
-      showGeminiError(['JSON.parse falló en respuesta 200 ('+usedModel+')','Error: '+pe.message,'','━━ body ━━',bodyTxt]);
-      resetRec(); return;
-    }
+    catch(pe){ showGeminiError(['JSON.parse falló en respuesta 200','Error: '+pe.message,'','━━ body ━━',bodyTxt]); resetRec(); return; }
 
     var raw=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'';
-    if(!raw){
-      showGeminiError(['Gemini ('+usedModel+') respondió 200 pero sin texto en candidates','','━━ body ━━',bodyTxt]);
-      resetRec(); return;
-    }
+    if(!raw){ showGeminiError(['Gemini respondió 200 pero sin texto en candidates','','━━ body ━━',bodyTxt]); resetRec(); return; }
 
     var m=raw.trim().match(/\{[\s\S]*\}/);
-    if(!m){ showGeminiError(['Gemini ('+usedModel+') no devolvió JSON válido','','━━ raw ━━',raw]); resetRec(); return; }
+    if(!m){ showGeminiError(['Gemini no devolvió JSON válido','','━━ raw ━━',raw]); resetRec(); return; }
 
     var a;
     try{ a=JSON.parse(m[0]); }
-    catch(je){ showGeminiError(['JSON.parse falló en texto de Gemini ('+usedModel+')','Error: '+je.message,'','━━ texto ━━',m[0]]); resetRec(); return; }
+    catch(je){ showGeminiError(['JSON.parse falló en texto de Gemini','Error: '+je.message,'','━━ texto ━━',m[0]]); resetRec(); return; }
 
     var idea={
       id:Date.now().toString(), transcript:text,
@@ -878,7 +855,7 @@ async function analyzeText(text){
     },1200);
 
   }catch(e){
-    showGeminiError(['Excepción JS ('+usedModel+')','Tipo: '+e.name,'Mensaje: '+(e.message||String(e)),'','━━ stack ━━',e.stack||'(sin stack)']);
+    showGeminiError(['Excepción JS','Tipo: '+e.name,'Mensaje: '+(e.message||String(e)),'','━━ stack ━━',e.stack||'(sin stack)']);
     resetRec();
   }
 }
