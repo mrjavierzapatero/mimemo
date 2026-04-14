@@ -576,11 +576,31 @@
     <div class="hdl"></div>
     <h2 style="font-size:19px;font-weight:700;color:var(--text);margin-bottom:6px">Escribe tu idea</h2>
     <p style="font-size:14px;color:var(--muted);margin-bottom:16px">No se pudo transcribir la voz. Escribe la idea aquí:</p>
-    <textarea id="mnTx" rows="5" placeholder="Describe tu idea... (en móvil usa el micrófono del teclado)" style="width:100%;padding:12px;border:1.5px solid var(--bdr);border-radius:12px;font-size:15px;font-family:inherit;resize:none;outline:none;color:var(--text);user-select:text;-webkit-user-select:text;"></textarea>
+    <!-- Voz nativa Android: input oculto con x-webkit-speech -->
+    <input type="text" id="mnVoiceHidden" x-webkit-speech lang="es-ES"
+      style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0"
+      onwebkitspeechchange="mnVoiceResult(this.value)"
+      oninput="mnVoiceResult(this.value)">
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn" id="mnVoiceBtn" style="flex:1;background:rgba(119,179,219,.12);border:1.5px solid var(--bdr);border-radius:12px;padding:11px;font-size:13px;font-weight:700;color:var(--blue);display:flex;align-items:center;justify-content:center;gap:6px" onclick="triggerAndroidVoice()">
+        <i class="ph ph-microphone"></i> Voz (Android)
+      </button>
+    </div>
+    <textarea id="mnTx" rows="5" placeholder="Describe tu idea..." style="width:100%;padding:12px;border:1.5px solid var(--bdr);border-radius:12px;font-size:15px;font-family:inherit;resize:none;outline:none;color:var(--text);user-select:text;-webkit-user-select:text;"></textarea>
     <div style="display:flex;gap:8px;margin-top:14px">
       <button class="btn bg2" style="flex:1" onclick="closeOv('mnOv');resetRec()">Cancelar</button>
       <button class="btn bb"  style="flex:2" onclick="submitManual()"><i class="ph ph-sparkle"></i>Analizar</button>
     </div>
+  </div>
+</div>
+
+<!-- ERROR OVERLAY -->
+<div class="ov" id="errOv" onclick="ovClick(event,'errOv')">
+  <div class="sh" style="background:#1a0a0a">
+    <div class="hdl" style="background:rgba(255,255,255,.15)"></div>
+    <h2 style="font-size:17px;font-weight:700;color:#ff6b6b;margin-bottom:12px">&#9888; Error Gemini</h2>
+    <pre id="errTxt" style="white-space:pre-wrap;word-break:break-all;font-size:12px;font-family:monospace;background:#0d0606;border-radius:8px;padding:12px;max-height:55vh;overflow-y:auto;color:#ffcaca;border:1px solid rgba(255,100,100,.3);line-height:1.6"></pre>
+    <button class="btn bb" style="width:100%;margin-top:14px" onclick="closeOv('errOv')">Cerrar</button>
   </div>
 </div>
 
@@ -759,31 +779,96 @@ function showTx(t){ var b=document.getElementById('txBox'); b.textContent=t; b.c
 function resetRec(){ isProc=false; document.getElementById('recStopBtn').classList.remove('visible'); document.getElementById('recLbl').textContent='grabar idea'; document.getElementById('txBox').classList.remove('on'); }
 
 /* GEMINI TEXT API */
+function showGeminiError(lines){
+  var txt=lines.join('\n');
+  console.error('Error Gemini:', txt);
+  document.getElementById('errTxt').textContent=txt;
+  openOv('errOv');
+}
+
 async function analyzeText(text){
-  const key=localStorage.getItem(AK);
-  if(!key){ toast('Añade tu API Key'); openOv('stOv'); resetRec(); return; }
+  // ── DIAGNÓSTICO: verificar key ──────────────────────────────────────────────
+  var key=localStorage.getItem(AK);
+  var keyRaw=localStorage.getItem(AK);  // guardamos el valor crudo para logging
+  console.log('[mimemo] localStorage key name:', AK);
+  console.log('[mimemo] key raw value:', keyRaw);
+  console.log('[mimemo] key length:', keyRaw ? keyRaw.length : 0);
+  console.log('[mimemo] key trimmed:', keyRaw ? keyRaw.trim() : '(vacía)');
+  // Usar siempre la versión sin espacios fantasma
+  if(keyRaw) key=keyRaw.trim();
+
+  if(!key){
+    showGeminiError(['KEY NO ENCONTRADA','localStorage.getItem("'+AK+'") devolvió: '+JSON.stringify(keyRaw),'Abre Ajustes y guarda tu API Key de Gemini.']);
+    resetRec(); return;
+  }
+
   isProc=true;
   showTx('"'+text+'"');
+
   var prompt='Analiza esta idea grabada por voz. Devuelve SOLO JSON sin markdown.\n\nIdea: "'+text+'"\n\n{"title":"Título corto max 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es 2-3 frases claras","viability":"Viabilidad y competencia 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins 1 (baja) a 5 (excepcional).';
+
+  var requestBody={contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:.3}};
+  var requestBodyStr=JSON.stringify(requestBody);
+  var fetchUrl='https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key;
+
+  // ── DIAGNÓSTICO: log del body y URL ────────────────────────────────────────
+  console.log('[mimemo] fetch URL (sin key):', 'https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key=...'+key.slice(-6));
+  console.log('[mimemo] request body:', requestBodyStr);
+
   try{
-    var r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+GM+':generateContent?key='+key,{
+    var r=await fetch(fetchUrl,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:.3}})
+      body:requestBodyStr
     });
+
+    var bodyTxt=await r.text();
+    console.log('[mimemo] HTTP status:', r.status, r.statusText);
+    console.log('[mimemo] response body:', bodyTxt);
+
     if(!r.ok){
-      var er=await r.json().catch(function(){return {};});
-      var erMsg=r.status===403||r.status===400
-        ?'API Key incorrecta (HTTP '+r.status+')'
-        :'HTTP '+r.status+': '+(er.error&&er.error.message?er.error.message:JSON.stringify(er).slice(0,300));
-      alert('Error Gemini:\n'+erMsg);
+      var erLines=[
+        '━━ HTTP '+r.status+' '+r.statusText+' ━━',
+        'Key usada (últimos 8): ...'+key.slice(-8),
+        'Key length: '+key.length,
+        'Modelo: '+GM,
+        ''
+      ];
+      try{
+        var erJ=JSON.parse(bodyTxt);
+        if(erJ.error){
+          erLines.push('mensaje: '+erJ.error.message);
+          if(erJ.error.status) erLines.push('status:  '+erJ.error.status);
+          if(erJ.error.code)   erLines.push('code:    '+erJ.error.code);
+          erLines.push('');
+        }
+      }catch(x){}
+      erLines.push('━━ body completo ━━');
+      erLines.push(bodyTxt);
+      showGeminiError(erLines);
       resetRec(); return;
     }
-    var d=await r.json();
+
+    var d;
+    try{ d=JSON.parse(bodyTxt); }
+    catch(pe){
+      showGeminiError(['JSON.parse falló en respuesta 200','Error: '+pe.message,'','━━ body recibido ━━',bodyTxt]);
+      resetRec(); return;
+    }
+
     var raw=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'';
+    if(!raw){
+      showGeminiError(['Gemini respondió 200 pero sin texto en candidates','','━━ body completo ━━',bodyTxt]);
+      resetRec(); return;
+    }
+
     var m=raw.trim().match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('Gemini no devolvió JSON');
-    var a=JSON.parse(m[0]);
+    if(!m){ showGeminiError(['Gemini no devolvió JSON válido','','━━ raw text ━━',raw]); resetRec(); return; }
+
+    var a;
+    try{ a=JSON.parse(m[0]); }
+    catch(je){ showGeminiError(['JSON.parse falló en texto de Gemini','Error: '+je.message,'','━━ texto extraído ━━',m[0]]); resetRec(); return; }
+
     var idea={
       id:Date.now().toString(), transcript:text,
       title:a.title||'Idea sin título',
@@ -804,8 +889,50 @@ async function analyzeText(text){
         if(el&&!el.classList.contains('open')) el.querySelector('.folder-hd').click();
       },300);
     },1200);
-  }catch(e){ alert('Error Gemini:\n'+(e&&e.message?e.message:String(e))); console.error(e); }
-  finally{ resetRec(); }
+
+  }catch(e){
+    showGeminiError([
+      'Excepción JS atrapada',
+      'Tipo: '+e.name,
+      'Mensaje: '+(e.message||String(e)),
+      '',
+      '━━ stack ━━',
+      e.stack||'(sin stack)'
+    ]);
+    resetRec();
+  }
+}
+
+/* ANDROID VOICE INPUT */
+function mnVoiceResult(val){
+  if(!val) return;
+  var ta=document.getElementById('mnTx');
+  ta.value=val;
+  // Mover cursor al final
+  ta.selectionStart=ta.selectionEnd=val.length;
+}
+
+function triggerAndroidVoice(){
+  // Método 1: x-webkit-speech — dispara el reconocedor nativo en Android WebView / Samsung Browser
+  var hi=document.getElementById('mnVoiceHidden');
+  if(hi){
+    hi.value='';
+    // Simular click en el input oculto activa el micro nativo en GBoard/Samsung
+    try{ hi.click(); } catch(e){}
+    // Fallback: focus + dispatchEvent
+    try{
+      hi.style.opacity='0.01'; hi.style.pointerEvents='auto';
+      hi.focus();
+      hi.style.opacity='0'; hi.style.pointerEvents='none';
+    }catch(ex){}
+    return;
+  }
+  // Método 2: Intent URL de Android (abre reconocimiento de voz del sistema)
+  // Funciona en Samsung Internet y Chrome en Android
+  var ua=navigator.userAgent||'';
+  if(/Android/i.test(ua)){
+    window.location.href='intent://com.google.android.googlequicksearchbox/VOICE_SEARCH_RESULTS#Intent;action=android.speech.action.RECOGNIZE_SPEECH;S.android.speech.extra.LANGUAGE_MODEL=free_form;S.android.speech.extra.LANGUAGE=es-ES;S.android.speech.extra.PROMPT=Describe tu idea;end';
+  }
 }
 /* FOLDERS */
 function renderFolders(){
