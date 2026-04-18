@@ -40,7 +40,7 @@
     #app.ready{display:block;}
 
     /* VIEWS */
-    .view{display:none;position:absolute;inset:0;flex-direction:column;background:#fff;}
+    .view{display:none;position:absolute;inset:0;flex-direction:column;background:#fff;overflow:hidden;}
     .view.active{display:flex;}
 
     /* ── HOME ─────────────────────────────────────────────
@@ -50,6 +50,7 @@
       background:linear-gradient(180deg,#001f3d 0%,#003d7a 45%,#0072b2 75%,#0ba2dd 100%);
       align-items:center;justify-content:center;
       gap:16px;position:relative;
+      min-height:100dvh;
     }
 
     /* Gear button */
@@ -317,7 +318,7 @@
     <button class="g-gear" onclick="openOv('stOv')">⚙</button>
 
     <!-- Concentric record button (decorative, tapping focuses textarea) -->
-    <button class="rec-btn" id="recBtn" onclick="focusInput()">
+    <button class="rec-btn" id="recBtn" onclick="toggleMic()">
       <svg viewBox="0 0 105.18 105.18" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
         <defs>
           <linearGradient id="rg0" x1="52.59" y1="105.18" x2="52.59" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0072b2"/><stop offset="1" stop-color="#0ba2dd"/></linearGradient>
@@ -333,7 +334,7 @@
         <circle cx="52.59" cy="52.59" r="8.55"  fill="url(#rg4)" id="rc4" style="transform-origin:52.59px 52.59px"/>
       </svg>
     </button>
-    <span class="g-lbl">toca para activar el micrófono</span>
+    <span class="g-lbl" id="recLbl">toca para grabar</span>
 
     <!-- Native voice input — tap the button above to open keyboard with mic -->
     <div class="voice-wrap">
@@ -542,14 +543,6 @@ function gv(name){
   document.getElementById(map[name]).classList.add('active');
   if(name==='ideas') renderFolders();
   if(name==='buscar') setTimeout(function(){ document.getElementById('sinp').focus(); },200);
-}
-
-// ── INPUT ────────────────────────────────────────────────
-function focusInput(){
-  var inp = document.getElementById('ideaInput');
-  inp.focus();
-  // Scroll to show input
-  inp.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
 // ── GUARDAR IDEA ─────────────────────────────────────────
