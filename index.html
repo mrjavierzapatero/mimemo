@@ -463,9 +463,9 @@
   <div class="sh">
     <div class="hdl"></div>
     <div class="st2">Ajustes</div>
-    <div class="sd2"><strong>mimemo</strong> usa <strong>Google Gemini</strong> para analizar ideas. La API Key se guarda solo en tu dispositivo.</div>
-    <label class="sl2">API Key de Google Gemini</label>
-    <input type="password" class="si2" id="apiKI" placeholder="AIzaSy..." autocomplete="off">
+    <div class="sd2"><strong>mimemo</strong> usa <strong>Claude (Anthropic)</strong> para analizar ideas. La API Key se guarda solo en tu dispositivo.</div>
+    <label class="sl2">API Key de Anthropic</label>
+    <input type="password" class="si2" id="apiKI" placeholder="sk-ant-..." autocomplete="off">
     <button class="ss2" onclick="saveSt()">Guardar</button>
     <a class="sln2" href="https://aistudio.google.com/app/apikey" target="_blank">Consigue tu API Key gratis →</a>
   </div>
@@ -484,7 +484,7 @@
 // ── CONFIG ──────────────────────────────────────────────
 const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1';
 // v1beta + gemini-1.5-flash = correct for free tier Google AI Studio
-const GEMINI_URL='https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+// API: Anthropic Claude
 const CATS={musica:'música',app:'apps',web:'web',negocio:'negocios',otro:'miscelánea'};
 
 let ideas=[], curId=null, curView='grabar';
@@ -545,7 +545,7 @@ async function guardarIdea(){
   var text = document.getElementById('ideaInput').value.trim();
   if(!text){ focusInput(); return; }
   var key = localStorage.getItem(AK);
-  if(!key){ toast('Configura tu API Key en ⚙️'); openOv('stOv'); return; }
+  if(!key){ toast('Configura tu API Key de Anthropic en ⚙️'); openOv('stOv'); return; }
 
   // Clear input immediately
   document.getElementById('ideaInput').value = '';
@@ -555,15 +555,21 @@ async function guardarIdea(){
   document.getElementById('procTxt').textContent = 'Analizando idea con Gemini...';
   document.getElementById('procOv').classList.add('on');
 
-  var prompt = 'Analiza esta idea. Devuelve SOLO JSON sin markdown ni explicaciones.\n\nIdea: "' + text + '"\n\n{"title":"Título corto máx 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es, 2-3 frases claras","viability":"Viabilidad y competencia, 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins: 1 baja a 5 excepcional.';
+  var prompt = 'Analiza esta idea de negocio/proyecto. Devuelve SOLO JSON válido sin markdown.\n\nIdea: "' + text + '"\n\n{"title":"Título corto máx 8 palabras","category":"musica|app|web|negocio|otro","summary":"Qué es, 2-3 frases claras","viability":"Viabilidad y competencia, 2-3 frases","similar":"Ejemplos similares existentes","monetization":"Cómo monetizar","coins":3}\n\ncoins: 1 baja a 5 excepcional. Responde SOLO con el JSON.';
 
   try{
-    var r = await fetch(GEMINI_URL + '?key=' + key, {
+    var r = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body:JSON.stringify({
-        contents:[{parts:[{text:prompt}]}],
-        generationConfig:{maxOutputTokens:800,temperature:0.3}
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:800,
+        messages:[{role:'user',content:prompt}]
       })
     });
     if(!r.ok){
@@ -572,11 +578,9 @@ async function guardarIdea(){
       throw new Error(emsg);
     }
     var d = await r.json();
-    var raw = (d.candidates && d.candidates[0] && d.candidates[0].content &&
-               d.candidates[0].content.parts && d.candidates[0].content.parts[0] &&
-               d.candidates[0].content.parts[0].text) || '';
+    var raw = (d.content && d.content[0] && d.content[0].text) || '';
     var m = raw.trim().match(/\{[\s\S]*\}/);
-    if(!m) throw new Error('Respuesta inesperada de Gemini');
+    if(!m) throw new Error('Respuesta inesperada');
     var a = JSON.parse(m[0]);
     var idea = {
       id: Date.now().toString(),
