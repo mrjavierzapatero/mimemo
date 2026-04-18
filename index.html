@@ -588,11 +588,11 @@
 <div id="manualOv">
   <div id="manualSheet">
     <h3>Escribe tu idea</h3>
-    <p>La voz no se pudo transcribir. Escribe la idea a mano:</p>
+    <p>Describe tu idea brevemente:</p>
     <textarea id="manualTxt" rows="5" placeholder="Ej: Pieza para piano en si bemol mayor de 15 minutos..."></textarea>
     <div id="manualBtns">
       <button id="manualCancel" onclick="closeManual()">Cancelar</button>
-      <button id="manualAnalyze" onclick="analyzeManual()">Analizar con Gemini</button>
+      <button id="manualAnalyze" onclick="analyzeManual()">Guardar idea</button>
     </div>
   </div>
 </div>
@@ -600,7 +600,7 @@
 
 <script>
 'use strict';
-const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1', GM='gemini-1.5-flash';
+const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1', GM='gemini-1.5-flash-latest';
 const CATS={
   musica:{label:'m\u00fasica'},app:{label:'apps'},
   web:{label:'web'},negocio:{label:'negocios'},otro:{label:'miscel\u00e1nea'}
@@ -789,7 +789,9 @@ async function analyzeText(text){
     });
     if(!r.ok){
       var er=await r.json().catch(function(){return {};});
-      toast(r.status===403||r.status===400?'API Key incorrecta':('Error: '+(er.error&&er.error.message||r.status)));
+      var emsg=er.error&&er.error.message||('HTTP '+r.status);
+      if(r.status===403||r.status===400||r.status===401) emsg='API Key incorrecta. Ve a ajustes (⚙️) y pega tu key de aistudio.google.com';
+      alert('Error Gemini:\n'+emsg);
       resetRec(); return;
     }
     var d=await r.json();
