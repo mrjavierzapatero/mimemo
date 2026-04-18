@@ -60,29 +60,29 @@
       text-align:center;line-height:1.3;margin-bottom:30px;}
 
     /* rec_button container */
-    .rec-wrap{position:relative;width:160px;height:160px;
+    .rec-wrap{position:relative;width:130px;height:130px;
       cursor:pointer;margin-bottom:18px;flex-shrink:0;
       border-radius:50%;}
 
 
 
     /* Each circle is absolutely positioned, centred, animates independently */
-    .rec-wrap svg{position:absolute;top:0;left:0;width:160px;height:160px;overflow:hidden;border-radius:50%;}
+    .rec-wrap svg{position:absolute;top:0;left:0;width:130px;height:130px;overflow:hidden;border-radius:50%;}
     /* The 5 circles inside the SVG get their own transform-origin=center */
     /* We'll animate via JS by setting inline style transform on each <circle> */
 
     /* Ripple rings that expand outward while recording */
     .ripple{position:absolute;top:50%;left:50%;
-      width:160px;height:160px;border-radius:50%;
-      border:2px solid rgba(0,114,178,.28);
+      width:130px;height:130px;border-radius:50%;
+      border:2px solid rgba(255,255,255,.28);
       transform:translate(-50%,-50%);
       opacity:0;pointer-events:none;}
     .ripple:nth-child(1){animation-delay:0s;}
     .ripple:nth-child(2){animation-delay:.6s;}
     .ripple:nth-child(3){animation-delay:1.2s;}
     .recording .ripple{animation:ripOut 2s ease-out infinite;}
-    @keyframes ripOut{0%{transform:translate(-50%,-50%) scale(1);opacity:.5}
-      100%{transform:translate(-50%,-50%) scale(2.4);opacity:0}}
+    @keyframes ripOut{0%{transform:translate(-50%,-50%) scale(1);opacity:.4}
+      100%{transform:translate(-50%,-50%) scale(2.2);opacity:0}}
 
     .g-lbl{font-size:13px;font-weight:400;color:var(--muted);text-align:center;max-width:280px;}
     /* Stop button — sits BELOW the rec button, separate element */
@@ -173,8 +173,10 @@
       position:fixed;bottom:0;left:0;right:0;
       height:calc(var(--footer) + env(safe-area-inset-bottom,0px));
       z-index:40;
-      background:var(--b1); /* fallback if canvas fails */
+      background:var(--b1);
     }
+    body.home-view #waterFoot{ background:transparent; }
+
     #waveCanvas{position:absolute;top:0;left:0;width:100%;height:100%;display:block;}
 
     /* Nav sits on top of the canvas (pointer-events restored) */
@@ -318,6 +320,29 @@
       font-size:13px;font-weight:500;z-index:9000;opacity:0;pointer-events:none;
       white-space:nowrap;transition:opacity .3s,transform .3s;}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+    /* ── HOME OCEAN BACKGROUND ─────────────────────────── */
+    #vGrabar{
+      background: linear-gradient(180deg, #001f3d 0%, #003d7a 40%, #0072b2 70%, #0ba2dd 100%);
+    }
+    /* All text elements on dark bg */
+    .g-tagline{ display:none; }
+    .g-lbl{ color: rgba(255,255,255,0.55) !important; }
+    .g-gear{ color: rgba(255,255,255,0.5) !important; }
+    .txbox{ background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); color: #fff; }
+    .api-ban-home{ background: rgba(255,255,255,.15); border-color: rgba(255,255,255,.25); color: #fff; }
+    /* Animated wave overlay at top — gives the ocean surface feel */
+    #vGrabar::before{
+      content:'';
+      position:absolute;
+      top:0;left:0;right:0;
+      height:35%;
+      background: radial-gradient(ellipse at 50% -20%, rgba(11,162,221,0.4) 0%, transparent 70%);
+      pointer-events:none;
+      z-index:0;
+    }
+    #vGrabar > *{ position:relative; z-index:1; }
+
   </style>
 </head>
 <body>
@@ -344,9 +369,10 @@
   <div class="view active" id="vGrabar">
     <button class="g-gear" onclick="openOv('stOv')"><i class="ph ph-gear-six"></i></button>
 
-    <p class="g-tagline">mimemo listo<br>para recibir ideas</p>
+
 
     <!-- rec_button_mimemo.svg: 5 concentric circles, vibrate with voice -->
+    
     <div class="rec-wrap" id="recWrap" onclick="toggleRec()">
       <div class="ripple"></div>
       <div class="ripple"></div>
@@ -618,7 +644,7 @@ function resizeCvs(){ CVS.width=window.innerWidth; CVS.height=document.getElemen
 function drawWave(){
   const w=CVS.width,h=CVS.height; if(!w||!h){ requestAnimationFrame(drawWave); return; }
   CTX2.clearRect(0,0,w,h);
-  const by=h*.38;
+  const by=h*.25;
   function yAt(x){ const nx=x/w,tl=-gyro*16*(nx-.5); return by+tl+Math.sin(nx*Math.PI*2+waveT*.85)*10+Math.sin(nx*Math.PI*3.5+waveT*.52+1.2)*5+Math.sin(nx*Math.PI*1.2+waveT*1.3+2.4)*3; }
   const g=CTX2.createLinearGradient(0,by-14,0,h);
   g.addColorStop(0,'#1a9fd4'); g.addColorStop(.25,'#0080bb'); g.addColorStop(1,'#00538a');
@@ -909,6 +935,7 @@ function saveIdeas(){ localStorage.setItem(SK,JSON.stringify(ideas)); }
 function esc(s){ return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),3000); }
 
+
 /* INIT */
 function init(){
   const raw=localStorage.getItem(SK)||localStorage.getItem('memo_ideas_v1')||localStorage.getItem('mimemo_ideas_v1');
@@ -924,6 +951,7 @@ function init(){
       document.addEventListener('click',async function g(){ try{ if((await DeviceOrientationEvent.requestPermission())==='granted') setupGyro(); }catch(e){} document.removeEventListener('click',g); },{once:true});
     } else { setupGyro(); }
   }
+  document.body.classList.add('home-view');
   runSplash();
   if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
