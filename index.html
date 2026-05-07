@@ -142,8 +142,10 @@
 
     /* Wave at bottom of home */
     #homeWave{
-      position:fixed;bottom:calc(76px + env(safe-area-inset-bottom,0px));
-      left:0;right:0;height:118px;z-index:1;opacity:.72;
+      position:fixed;bottom:calc(72px + env(safe-area-inset-bottom,0px));
+      left:-8vw;right:-8vw;width:116vw;height:120px;z-index:1;opacity:.22;
+      -webkit-mask-image:linear-gradient(180deg, transparent 0%, rgba(0,0,0,.6) 42%, #000 100%);
+      mask-image:linear-gradient(180deg, transparent 0%, rgba(0,0,0,.6) 42%, #000 100%);
       transform:rotate(calc(var(--water-tilt) * .55deg));
       transform-origin:50% 100%;pointer-events:none;
     }
@@ -155,36 +157,39 @@
       height:calc(90px + env(safe-area-inset-bottom,0px));
       display:flex;align-items:center;justify-content:space-around;
       padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
-      z-index:3;background:linear-gradient(180deg,#167ab5 0%,#0b6096 46%,#084c7a 100%);
+      z-index:3;
+      background:
+        linear-gradient(180deg, rgba(31,151,210,.82) 0%, rgba(0,114,178,.94) 42%, #08527f 100%);
       color:#fff;overflow:visible;
       transform:rotate(calc(var(--water-tilt) * .42deg));
       transform-origin:50% 100%;
       transition:transform .22s ease-out;
     }
     .home-nav::before,.inner-foot::before{
-      content:'';position:absolute;left:-50%;right:-50%;top:-58px;height:76px;
+      content:'';position:absolute;left:0;right:0;top:-56px;height:156px;
       background-image:
-        radial-gradient(90px 28px at 19% 62%, rgba(255,255,255,.12), transparent 74%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 76' preserveAspectRatio='none'%3E%3Cpath fill='%23167ab5' d='M0 38 C40 12 78 64 120 38 C162 12 198 64 240 38 L240 76 L0 76 Z'/%3E%3C/svg%3E");
+        linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(31,151,210,.18) 38%, rgba(31,151,210,.52) 62%, rgba(0,114,178,.96) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 160' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.26' stroke-width='1'%3E%3Cpath d='M-60 64 C80 22 180 92 330 54 C510 8 640 98 820 58 C980 22 1080 70 1260 36'/%3E%3Cpath d='M-80 96 C70 48 190 126 360 84 C540 40 710 118 880 76 C1030 40 1130 92 1280 60'/%3E%3Cpath d='M-40 126 C130 82 250 148 430 112 C610 76 770 140 940 104 C1060 78 1160 116 1240 92'/%3E%3C/g%3E%3C/svg%3E");
       background-repeat:repeat-x,repeat-x;
-      background-size:420px 76px,240px 76px;
+      background-size:100% 156px,1200px 156px;
       background-position:0 0,0 0;
-      animation:waveSurface 9.5s linear infinite;
+      animation:waveLines 34s linear infinite;
       z-index:0;pointer-events:none;
     }
     .home-nav::after,.inner-foot::after{
-      content:'';position:absolute;left:-45%;right:-45%;top:-42px;height:66px;pointer-events:none;
+      content:'';position:absolute;left:0;right:0;top:-42px;height:138px;pointer-events:none;
       background-image:
-        radial-gradient(70px 24px at 72% 52%, rgba(255,255,255,.11), transparent 72%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 66' preserveAspectRatio='none'%3E%3Cpath fill='%230ba2dd' fill-opacity='.42' d='M0 34 C44 58 86 10 130 34 C174 58 216 10 260 34 L260 66 L0 66 Z'/%3E%3C/svg%3E");
+        radial-gradient(120px 22px at 18% 68%, rgba(255,255,255,.10), transparent 70%),
+        radial-gradient(160px 26px at 76% 62%, rgba(255,255,255,.08), transparent 72%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 150' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230ba2dd' stroke-opacity='.32' stroke-width='.8'%3E%3Cpath d='M-80 52 C120 16 260 82 460 50 C660 18 780 78 980 48 C1160 22 1280 62 1480 34'/%3E%3Cpath d='M-90 108 C130 70 280 128 500 94 C720 58 880 122 1100 86 C1240 64 1340 104 1490 76'/%3E%3C/g%3E%3C/svg%3E");
       background-repeat:repeat-x,repeat-x;
-      background-size:360px 66px,260px 66px;
-      background-position:30px 0,0 0;
-      animation:waveSurfaceBack 13s linear infinite;
+      background-size:100% 138px,1400px 138px;
+      background-position:0 0,0 0;
+      animation:waveLinesBack 48s linear infinite;
       z-index:0;
     }
-    @keyframes waveSurface{from{background-position:0 0,0 0}to{background-position:420px 0,240px 0}}
-    @keyframes waveSurfaceBack{from{background-position:30px 0,0 0}to{background-position:-330px 0,-260px 0}}
+    @keyframes waveLines{from{background-position:0 0,0 0}to{background-position:0 0,1200px 0}}
+    @keyframes waveLinesBack{from{background-position:0 0,0 0}to{background-position:0 0,-1400px 0}}
     .home-nav button,.nt{
       display:flex;flex-direction:column;align-items:center;gap:4px;
       border:none;background:none;cursor:pointer;
@@ -222,7 +227,8 @@
       position:fixed;
       top:calc(100% - 96px);
       bottom:auto;
-      background:linear-gradient(180deg,#0072b2 0%,#0b5f94 100%);
+      background:
+        linear-gradient(180deg, rgba(31,151,210,.82) 0%, rgba(0,114,178,.94) 42%, #08527f 100%);
     }
     #vGrabar > .g-gear{position:absolute;z-index:3;}
 
@@ -599,7 +605,7 @@ function drawWave(){
   if(!w||!h) return;
   HWCTX.clearRect(0,0,w,h);
   function yAt(x, base, amp, speed, phase){
-    var nx=x/w, tl=-gyro*14*(nx-.5);
+    var nx=x/w, tl=-gyro*8*(nx-.5);
     return base+tl
       +Math.sin(nx*Math.PI*2.2+waveT*speed+phase)*amp
       +Math.sin(nx*Math.PI*4.8+waveT*(speed*.62)+phase+1.7)*(amp*.42)
@@ -613,10 +619,10 @@ function drawWave(){
     HWCTX.lineTo(w,h+4); HWCTX.lineTo(0,h+4); HWCTX.closePath();
     HWCTX.globalAlpha=alpha; HWCTX.fillStyle=g; HWCTX.fill();
   }
-  band(h*.26, 6.5, .82, .2, '#58c2e9', '#0072b2', .42);
-  band(h*.42, 9, .58, 1.8, '#0ba2dd', '#07578a', .50);
-  band(h*.58, 5, 1.05, 3.1, '#3aa9d8', '#003f68', .28);
-  HWCTX.globalAlpha=.16;
+  band(h*.36, 2.2, .24, .2, 'rgba(88,194,233,.42)', 'rgba(0,114,178,.18)', .30);
+  band(h*.48, 3.2, .18, 1.8, 'rgba(11,162,221,.34)', 'rgba(7,87,138,.18)', .28);
+  band(h*.60, 2.4, .30, 3.1, 'rgba(58,169,216,.24)', 'rgba(0,63,104,.16)', .20);
+  HWCTX.globalAlpha=.08;
   HWCTX.fillStyle='#fff';
   for(var p=0;p<10;p++){
     var px=(p*97+waveT*18)%Math.max(w,1);
@@ -624,7 +630,7 @@ function drawWave(){
     HWCTX.beginPath(); HWCTX.ellipse(px,py,32,5,Math.sin(p)*.12,0,Math.PI*2); HWCTX.fill();
   }
   HWCTX.globalAlpha=1;
-  waveT+=.016;
+  waveT+=.012;
 }
 
 // ── VIEWS ────────────────────────────────────────────────
