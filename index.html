@@ -481,7 +481,7 @@
     <label class="sl2">API Key de Anthropic</label>
     <input type="password" class="si2" id="apiKI" placeholder="sk-ant-..." autocomplete="off">
     <button class="ss2" onclick="saveSt()">Guardar</button>
-    <a class="sln2" href="https://aistudio.google.com/app/apikey" target="_blank">Consigue tu API Key gratis →</a>
+    <a class="sln2" href="https://console.anthropic.com/settings/keys" target="_blank">Consigue tu API Key de Anthropic →</a>
   </div>
 </div>
 
@@ -501,6 +501,7 @@ const SK='mimemo_ideas_v2', AK='mimemo_apikey_v1';
 const CATS={musica:'música',app:'apps',web:'web',negocio:'negocios',otro:'miscelánea'};
 
 let ideas=[], curId=null, curView='grabar';
+let recognition=null, isListening=false, finalTranscript='', interimTranscript='';
 
 // ── WAVE CANVAS ──────────────────────────────────────────
 const HWVS = document.getElementById('homeWave');
@@ -546,6 +547,89 @@ function gv(name){
 }
 
 // ── GUARDAR IDEA ─────────────────────────────────────────
+function focusInput(){
+  var input = document.getElementById('ideaInput');
+  input.focus();
+  var len = input.value.length;
+  try{ input.setSelectionRange(len, len); }catch(e){}
+  toast('Escribe o usa el micrófono del teclado');
+}
+
+function setMicState(on){
+  isListening = on;
+  document.getElementById('micBtn').classList.toggle('listening', on);
+  document.getElementById('recBtn').classList.toggle('recording', on);
+  document.getElementById('recLbl').textContent = on ? 'escuchando...' : 'toca para grabar';
+}
+
+function getSpeechRecognition(){
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition) return null;
+  if(recognition) return recognition;
+
+  recognition = new SpeechRecognition();
+  recognition.lang = 'es-ES';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = function(){
+    finalTranscript = '';
+    interimTranscript = '';
+    setMicState(true);
+  };
+
+  recognition.onresult = function(event){
+    interimTranscript = '';
+    for(var i=event.resultIndex; i<event.results.length; i++){
+      var piece = event.results[i][0].transcript;
+      if(event.results[i].isFinal) finalTranscript += piece;
+      else interimTranscript += piece;
+    }
+
+    var text = (finalTranscript || interimTranscript).trim();
+    if(text) document.getElementById('ideaInput').value = text;
+  };
+
+  recognition.onerror = function(event){
+    setMicState(false);
+    var code = event.error || 'desconocido';
+    console.warn('Speech recognition error:', code, event);
+    if(code === 'no-speech') toast('No se detectó voz. Prueba otra vez o usa el teclado.');
+    else if(code === 'not-allowed' || code === 'service-not-allowed') toast('Permiso de micrófono bloqueado');
+    else if(code === 'network') toast('La transcripción necesita conexión');
+    else toast('No pude iniciar la voz: ' + code);
+  };
+
+  recognition.onend = function(){
+    setMicState(false);
+    var text = (finalTranscript || document.getElementById('ideaInput').value).trim();
+    if(text) document.getElementById('ideaInput').value = text;
+  };
+
+  return recognition;
+}
+
+function toggleMic(){
+  if(isListening && recognition){
+    recognition.stop();
+    return;
+  }
+
+  var sr = getSpeechRecognition();
+  if(!sr){
+    focusInput();
+    return;
+  }
+
+  try{
+    sr.start();
+  } catch(e){
+    console.warn('Speech recognition start failed:', e);
+    focusInput();
+  }
+}
+
 async function guardarIdea(){
   var text = document.getElementById('ideaInput').value.trim();
   if(!text){ focusInput(); return; }

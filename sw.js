@@ -1,4 +1,4 @@
-const CACHE = 'mimemo-v5';
+const CACHE = 'mimemo-v6';
 const ASSETS = [
   './',
   './manifest.json',
@@ -27,7 +27,8 @@ self.addEventListener('fetch', e => {
   const url = e.request.url;
 
   // Siempre red para APIs externas
-  if (url.includes('generativelanguage.googleapis.com') ||
+  if (url.includes('api.anthropic.com') ||
+      url.includes('generativelanguage.googleapis.com') ||
       url.includes('fonts.googleapis.com') ||
       url.includes('fonts.gstatic.com') ||
       url.includes('unpkg.com')) {
