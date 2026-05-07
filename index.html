@@ -159,7 +159,7 @@
     .home-nav::before,.inner-foot::before{
       content:'';position:absolute;left:-28vw;right:-28vw;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));
       background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%230072b2'/%3E%3Cstop offset='.48' stop-color='%23006ba8'/%3E%3Cstop offset='1' stop-color='%2307507c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M-280 72 C-60 116 120 38 370 66 C620 96 820 16 1090 32 C1320 46 1480 78 2080 44 L2080 250 L-280 250 Z'/%3E%3Cpath fill='none' stroke='%230ba2dd' stroke-opacity='.28' stroke-width='1.4' d='M-280 72 C-60 116 120 38 370 66 C620 96 820 16 1090 32 C1320 46 1480 78 2080 44'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.18' stroke-width='1.1'%3E%3Cpath d='M-280 104 C0 58 220 132 520 96 C830 56 1040 128 1370 86 C1590 58 1780 100 2060 70'/%3E%3Cpath d='M-300 148 C-20 96 280 184 660 134 C1000 88 1280 166 1620 120 C1860 94 2020 134 2220 110'/%3E%3Cpath d='M-260 190 C60 138 330 214 690 176 C1040 138 1320 206 1680 166 C1900 142 2060 178 2260 154'/%3E%3C/g%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%230072b2'/%3E%3Cstop offset='.48' stop-color='%23006ba8'/%3E%3Cstop offset='1' stop-color='%2307507c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M-280 78 C80 112 330 86 620 80 C930 74 1110 34 1460 42 C1700 48 1880 62 2080 52 L2080 250 L-280 250 Z'/%3E%3Cpath fill='none' stroke='%230ba2dd' stroke-opacity='.26' stroke-width='1.2' d='M-280 78 C80 112 330 86 620 80 C930 74 1110 34 1460 42 C1700 48 1880 62 2080 52'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.14' stroke-width='1'%3E%3Cpath d='M-280 116 C40 92 300 126 640 104 C980 82 1230 116 1560 94 C1780 80 1960 104 2180 88'/%3E%3Cpath d='M-300 164 C60 136 360 182 740 150 C1120 120 1400 168 1780 136 C1980 120 2140 148 2320 130'/%3E%3C/g%3E%3C/svg%3E");
       background-repeat:no-repeat;
       background-size:100% 100%;
       background-position:0 0;
@@ -171,15 +171,15 @@
       background-image:
         radial-gradient(180px 34px at 16% 50%, rgba(255,255,255,.08), transparent 72%),
         radial-gradient(220px 38px at 76% 42%, rgba(255,255,255,.06), transparent 74%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230ba2dd' stroke-opacity='.20' stroke-width='.9'%3E%3Cpath d='M-240 96 C80 50 300 118 640 88 C980 56 1220 122 1540 92 C1760 66 1940 108 2120 74'/%3E%3Cpath d='M-260 172 C100 116 340 196 700 150 C1060 104 1340 184 1700 136 C1920 108 2060 152 2200 130'/%3E%3C/g%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230ba2dd' stroke-opacity='.16' stroke-width='.8'%3E%3Cpath d='M-260 110 C80 82 320 122 680 96 C1040 70 1280 118 1640 92 C1840 78 2020 104 2220 84'/%3E%3Cpath d='M-280 178 C120 140 430 194 820 154 C1210 114 1510 178 1900 140 C2080 122 2220 154 2360 136'/%3E%3C/g%3E%3C/svg%3E");
       background-repeat:no-repeat,no-repeat,repeat-x;
       background-size:100% 100%,100% 100%,1800px 100%;
       background-position:0 0,0 0;
-      animation:waveLinesBack 62s linear infinite;
+      animation:waterLinesFloat 18s ease-in-out infinite;
       z-index:0;
     }
-    @keyframes waterMass{0%,100%{transform:translateX(0)}50%{transform:translateX(-4vw)}}
-    @keyframes waveLinesBack{from{background-position:0 0,0 0,0 0}to{background-position:0 0,0 0,-1800px 0}}
+    @keyframes waterMass{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    @keyframes waterLinesFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
     .home-nav button,.nt{
       display:flex;flex-direction:column;align-items:center;gap:4px;
       border:none;background:none;cursor:pointer;
