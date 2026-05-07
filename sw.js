@@ -1,4 +1,4 @@
-const CACHE = 'mimemo-v11';
+const CACHE = 'mimemo-v12';
 const ASSETS = [
   './',
   './manifest.json',

@@ -42,26 +42,18 @@
     #app::before{
       content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
       background:
-        radial-gradient(circle at 18% 22%, rgba(11,162,221,.16) 0 .8px, transparent 2px),
-        radial-gradient(circle at 72% 18%, rgba(0,114,178,.12) 0 1px, transparent 2.4px),
-        radial-gradient(circle at 84% 55%, rgba(230,32,68,.08) 0 .8px, transparent 2px),
-        radial-gradient(circle at 28% 74%, rgba(11,162,221,.12) 0 1px, transparent 2.2px),
-        radial-gradient(circle at 52% 34%, rgba(0,114,178,.08) 0 .7px, transparent 2px);
-      background-size:86px 132px, 142px 190px, 120px 170px, 170px 230px, 210px 260px;
-      animation:particlesDrift 24s linear infinite;
-      opacity:.75;
-    }
-    #app::after{
-      content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-      background:
-        radial-gradient(circle at 30% 30%, rgba(255,255,255,.95) 0 .8px, transparent 2px),
-        radial-gradient(circle at 64% 68%, rgba(255,255,255,.9) 0 .7px, transparent 2px);
-      background-size:130px 180px, 190px 240px;
-      mix-blend-mode:screen;opacity:.45;
-      animation:particlesDriftSoft 34s linear infinite;
+        radial-gradient(circle at 18% 22%, rgba(11,162,221,.11) 0 .75px, transparent 2px),
+        radial-gradient(circle at 72% 18%, rgba(0,114,178,.09) 0 .8px, transparent 2.4px),
+        radial-gradient(circle at 84% 55%, rgba(230,32,68,.045) 0 .65px, transparent 2px),
+        radial-gradient(circle at 28% 74%, rgba(11,162,221,.08) 0 .75px, transparent 2.2px),
+        radial-gradient(circle at 52% 34%, rgba(0,114,178,.055) 0 .6px, transparent 2px);
+      background-size:92px 142px, 154px 206px, 132px 184px, 182px 248px, 224px 278px;
+      -webkit-mask-image:linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
+      mask-image:linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
+      animation:particlesDrift 32s linear infinite;
+      opacity:.68;
     }
     @keyframes particlesDrift{from{background-position:0 0,0 0,0 0,0 0,0 0}to{background-position:16px -132px,-18px -190px,12px -170px,-10px -230px,18px -260px}}
-    @keyframes particlesDriftSoft{from{background-position:0 0,0 0}to{background-position:22px -180px,-16px -240px}}
 
     /* VIEWS */
     .view{display:none;position:absolute;inset:0;flex-direction:column;background:rgba(255,255,255,.88);overflow:hidden;z-index:1;}
@@ -165,30 +157,31 @@
       transition:transform .22s ease-out;
     }
     .home-nav::before,.inner-foot::before{
-      content:'';position:absolute;left:0;right:0;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));
+      content:'';position:absolute;left:-28vw;right:-28vw;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));
       background-image:
-        linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(0,114,178,.88) 23%, rgba(0,107,168,.96) 50%, #07507c 100%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 250' preserveAspectRatio='none'%3E%3Cpath fill='%230072b2' d='M0 80 C150 125 260 42 420 72 C590 104 750 4 940 28 C1050 42 1130 70 1200 56 L1200 250 L0 250 Z'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.22' stroke-width='1.1'%3E%3Cpath d='M-80 104 C90 58 220 132 410 96 C620 56 740 128 960 86 C1100 58 1220 100 1370 70'/%3E%3Cpath d='M-90 148 C80 96 260 184 500 134 C720 88 890 166 1110 120 C1240 94 1320 134 1460 110'/%3E%3Cpath d='M-50 190 C150 138 310 214 530 176 C750 138 920 206 1140 166 C1270 142 1360 178 1480 154'/%3E%3C/g%3E%3C/svg%3E");
-      background-repeat:no-repeat,repeat-x;
-      background-size:100% 100%,1200px 100%;
-      background-position:0 0,0 0;
-      animation:waveLines 46s linear infinite;
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%230ba2dd' stroke-opacity='.28' stroke-width='1.4' d='M-260 72 C-40 116 130 38 360 66 C590 96 780 16 1040 32 C1260 46 1420 78 1860 44'/%3E%3C/svg%3E"),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 250' preserveAspectRatio='none'%3E%3Cpath fill='%230072b2' d='M-260 72 C-40 116 130 38 360 66 C590 96 780 16 1040 32 C1260 46 1420 78 1860 44 L1860 250 L-260 250 Z'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.18' stroke-width='1.1'%3E%3Cpath d='M-260 104 C0 58 200 132 490 96 C790 56 980 128 1300 86 C1510 58 1690 100 1940 70'/%3E%3Cpath d='M-280 148 C-20 96 260 184 620 134 C940 88 1200 166 1520 120 C1740 94 1880 134 2080 110'/%3E%3Cpath d='M-240 190 C60 138 310 214 650 176 C980 138 1240 206 1580 166 C1790 142 1940 178 2120 154'/%3E%3C/g%3E%3C/svg%3E"),
+        linear-gradient(180deg, #0072b2 0%, #006ba8 46%, #07507c 100%);
+      background-repeat:no-repeat,no-repeat,repeat-x;
+      background-size:100% 100%,100% 100%,100% 100%;
+      background-position:0 0,0 0,0 0;
+      animation:waterMass 56s ease-in-out infinite;
       z-index:0;pointer-events:none;
     }
     .home-nav::after,.inner-foot::after{
-      content:'';position:absolute;left:0;right:0;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));pointer-events:none;
+      content:'';position:absolute;left:-28vw;right:-28vw;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));pointer-events:none;
       background-image:
         radial-gradient(180px 34px at 16% 50%, rgba(255,255,255,.08), transparent 72%),
         radial-gradient(220px 38px at 76% 42%, rgba(255,255,255,.06), transparent 74%),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1400 250' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230ba2dd' stroke-opacity='.24' stroke-width='.9'%3E%3Cpath d='M-80 96 C120 50 260 118 460 88 C660 56 800 122 1000 92 C1180 66 1300 108 1480 74'/%3E%3Cpath d='M-100 172 C130 116 290 196 520 150 C760 104 940 184 1180 136 C1320 108 1420 152 1510 130'/%3E%3C/g%3E%3C/svg%3E");
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%230ba2dd' stroke-opacity='.20' stroke-width='.9'%3E%3Cpath d='M-240 96 C80 50 300 118 640 88 C980 56 1220 122 1540 92 C1760 66 1940 108 2120 74'/%3E%3Cpath d='M-260 172 C100 116 340 196 700 150 C1060 104 1340 184 1700 136 C1920 108 2060 152 2200 130'/%3E%3C/g%3E%3C/svg%3E");
       background-repeat:no-repeat,no-repeat,repeat-x;
-      background-size:100% 100%,100% 100%,1400px 100%;
+      background-size:100% 100%,100% 100%,1800px 100%;
       background-position:0 0,0 0;
       animation:waveLinesBack 62s linear infinite;
       z-index:0;
     }
-    @keyframes waveLines{from{background-position:0 0,0 0}to{background-position:0 0,1200px 0}}
-    @keyframes waveLinesBack{from{background-position:0 0,0 0,0 0}to{background-position:0 0,0 0,-1400px 0}}
+    @keyframes waterMass{0%,100%{transform:translateX(0)}50%{transform:translateX(-4vw)}}
+    @keyframes waveLinesBack{from{background-position:0 0,0 0,0 0}to{background-position:0 0,0 0,-1800px 0}}
     .home-nav button,.nt{
       display:flex;flex-direction:column;align-items:center;gap:4px;
       border:none;background:none;cursor:pointer;
