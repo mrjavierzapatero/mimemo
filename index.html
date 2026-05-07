@@ -159,12 +159,10 @@
     .home-nav::before,.inner-foot::before{
       content:'';position:absolute;left:-28vw;right:-28vw;top:-106px;height:calc(224px + env(safe-area-inset-bottom,0px));
       background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%230ba2dd' stroke-opacity='.28' stroke-width='1.4' d='M-260 72 C-40 116 130 38 360 66 C590 96 780 16 1040 32 C1260 46 1420 78 1860 44'/%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 250' preserveAspectRatio='none'%3E%3Cpath fill='%230072b2' d='M-260 72 C-40 116 130 38 360 66 C590 96 780 16 1040 32 C1260 46 1420 78 1860 44 L1860 250 L-260 250 Z'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.18' stroke-width='1.1'%3E%3Cpath d='M-260 104 C0 58 200 132 490 96 C790 56 980 128 1300 86 C1510 58 1690 100 1940 70'/%3E%3Cpath d='M-280 148 C-20 96 260 184 620 134 C940 88 1200 166 1520 120 C1740 94 1880 134 2080 110'/%3E%3Cpath d='M-240 190 C60 138 310 214 650 176 C980 138 1240 206 1580 166 C1790 142 1940 178 2120 154'/%3E%3C/g%3E%3C/svg%3E"),
-        linear-gradient(180deg, #0072b2 0%, #006ba8 46%, #07507c 100%);
-      background-repeat:no-repeat,no-repeat,repeat-x;
-      background-size:100% 100%,100% 100%,100% 100%;
-      background-position:0 0,0 0,0 0;
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1800 250' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%230072b2'/%3E%3Cstop offset='.48' stop-color='%23006ba8'/%3E%3Cstop offset='1' stop-color='%2307507c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath fill='url(%23g)' d='M-280 72 C-60 116 120 38 370 66 C620 96 820 16 1090 32 C1320 46 1480 78 2080 44 L2080 250 L-280 250 Z'/%3E%3Cpath fill='none' stroke='%230ba2dd' stroke-opacity='.28' stroke-width='1.4' d='M-280 72 C-60 116 120 38 370 66 C620 96 820 16 1090 32 C1320 46 1480 78 2080 44'/%3E%3Cg fill='none' stroke='%230b5f94' stroke-opacity='.18' stroke-width='1.1'%3E%3Cpath d='M-280 104 C0 58 220 132 520 96 C830 56 1040 128 1370 86 C1590 58 1780 100 2060 70'/%3E%3Cpath d='M-300 148 C-20 96 280 184 660 134 C1000 88 1280 166 1620 120 C1860 94 2020 134 2220 110'/%3E%3Cpath d='M-260 190 C60 138 330 214 690 176 C1040 138 1320 206 1680 166 C1900 142 2060 178 2260 154'/%3E%3C/g%3E%3C/svg%3E");
+      background-repeat:no-repeat;
+      background-size:100% 100%;
+      background-position:0 0;
       animation:waterMass 56s ease-in-out infinite;
       z-index:0;pointer-events:none;
     }
