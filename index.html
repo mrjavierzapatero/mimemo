@@ -200,7 +200,7 @@
       background-repeat:no-repeat;
       background-size:100% 100%;
       background-position:0 0;
-      animation:waterMass 18s ease-in-out infinite;
+      animation:waterMass 12s ease-in-out infinite;
       z-index:0;pointer-events:none;
     }
     .home-nav::after,.inner-foot::after{
@@ -212,11 +212,19 @@
       background-repeat:no-repeat,no-repeat,repeat-x;
       background-size:100% 100%,100% 100%,1800px 100%;
       background-position:0 0,0 0;
-      animation:waterLinesFloat 14s ease-in-out infinite;
+      animation:waterLinesFloat 16s ease-in-out infinite;
       z-index:0;
     }
-    @keyframes waterMass{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-4px) scaleY(1.012)}}
-    @keyframes waterLinesFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+    @keyframes waterMass{
+      0%,100%{transform:translateY(0) scaleY(1);background-position:0 0}
+      35%{transform:translateY(-5px) scaleY(1.016);background-position:1.4vw 0}
+      70%{transform:translateY(3px) scaleY(.992);background-position:-1vw 0}
+    }
+    @keyframes waterLinesFloat{
+      0%,100%{transform:translateY(0);background-position:0 0,0 0,0 0}
+      45%{transform:translateY(4px);background-position:0 0,0 0,22px 0}
+      75%{transform:translateY(-2px);background-position:0 0,0 0,-14px 0}
+    }
     .home-nav button,.nt{
       display:flex;flex-direction:column;align-items:center;gap:4px;
       border:none;background:none;cursor:pointer;
@@ -700,6 +708,10 @@ function setMicState(on){
 
 function getSpeechRecognition(){
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
+    toast('La grabación necesita HTTPS. Usa la URL segura de GitHub o arreglamos el certificado.');
+    return null;
+  }
   if(!SpeechRecognition) return null;
   if(recognition) return recognition;
 
@@ -757,6 +769,8 @@ function getSpeechRecognition(){
 }
 
 function toggleMic(){
+  var input = document.getElementById('ideaInput');
+  input.focus();
   if(keepListening && recognition){
     keepListening = false;
     clearTimeout(restartTimer);
@@ -767,6 +781,7 @@ function toggleMic(){
 
   var sr = getSpeechRecognition();
   if(!sr){
+    if(window.isSecureContext) toast('Este navegador no permite dictado directo. Usa el micrófono del teclado.');
     focusInput();
     return;
   }
