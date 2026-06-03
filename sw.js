@@ -1,4 +1,4 @@
-const CACHE = 'mimemo-v15';
+const CACHE = 'mimemo-v16';
 const ASSETS = [
   './',
   './manifest.json',
@@ -27,8 +27,7 @@ self.addEventListener('fetch', e => {
   const url = e.request.url;
 
   // Siempre red para APIs externas
-  if (url.includes('api.anthropic.com') ||
-      url.includes('generativelanguage.googleapis.com') ||
+  if (url.includes('generativelanguage.googleapis.com') ||
       url.includes('fonts.googleapis.com') ||
       url.includes('fonts.gstatic.com') ||
       url.includes('unpkg.com')) {
@@ -59,5 +58,16 @@ self.addEventListener('fetch', e => {
       }
       return res;
     }))
+  );
+});
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clients => {
+        if (clients.length) return clients[0].focus();
+        return self.clients.openWindow('./');
+      })
   );
 });

@@ -1,36 +1,33 @@
 # mimemo 🎙️
 
-**Captura y analiza tus ideas con voz.**
+**Captura y ordena tu memoria personal con voz.**
 
-mimemo es una Progressive Web App (PWA) que te permite grabar ideas por voz, analizarlas automáticamente con Google Gemini AI y organizarlas en categorías.
+mimemo es una Progressive Web App (PWA) que te permite grabar ideas, reuniones, tareas, notas y recordatorios por voz.
 
 ## ✨ Funcionalidades
 
 - 🎙️ **Grabación por voz** — Toca el botón y habla
-- 🤖 **Análisis con IA** — Gemini genera título, resumen, viabilidad y opciones de monetización
-- 📁 **Organización** — Filtra por categoría (música, app, web, negocio, otro)
-- ✏️ **Editar ideas** — Modifica cualquier campo después de guardar
-- 🔍 **Búsqueda** — Busca en todas tus ideas a la vez
+- 🧠 **Clasificación local** — Distingue ideas, reuniones, tareas, notas y recordatorios sin servicios externos
+- 📅 **Recordatorios básicos** — Detecta fecha/hora y prepara avisos locales
+- 📁 **Organización** — Filtra por tipo de memoria
+- ✏️ **Editar memoria** — Modifica cualquier campo después de guardar
+- 🔍 **Búsqueda** — Busca en toda tu memoria a la vez
 - 📤 **Compartir** — WhatsApp, email o copiar al portapapeles
-- 💾 **Exportar** — Descarga tus ideas en `.txt` o `.json`
+- 💾 **Exportar** — Descarga tu memoria en `.txt`
 - 📱 **Instalable** — Funciona como app nativa en móvil (PWA)
 
 ## 🚀 Cómo usar
 
 1. Abre `index.html` en un servidor local o despliega en GitHub Pages / Netlify
-2. Ve a **Ajustes** (⚙️) y añade tu API Key de Google Gemini
-3. Toca el botón central para grabar una idea
-4. ¡La IA la analiza automáticamente!
+2. Toca el botón central para grabar una idea, reunión, tarea o recordatorio
+3. mimemo la clasifica y la guarda localmente
+4. Activa notificaciones desde Ajustes si quieres avisos locales
 
-## 🔑 API Key
+## 🔔 Avisos
 
-mimemo usa **Google Gemini 1.5 Flash** — completamente gratis.
+mimemo puede mostrar notificaciones locales cuando la app está abierta o se vuelve a abrir.
 
-1. Ve a [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Crea una API Key (no necesitas tarjeta de crédito)
-3. Pégala en Ajustes dentro de la app
-
-> **La API Key se guarda SOLO en tu dispositivo** (localStorage). Nunca se envía a ningún servidor propio.
+Para avisos garantizados aunque la app esté cerrada, el siguiente paso será añadir backend.
 
 ## 🗂️ Estructura del proyecto
 
@@ -73,8 +70,8 @@ npx serve .
 
 ## 🔒 Privacidad
 
-- Todas las ideas se guardan **localmente** en tu dispositivo (localStorage)
-- La API Key nunca sale de tu dispositivo
+- Todas las memorias se guardan **localmente** en tu dispositivo (localStorage)
+- No hay API Key ni análisis externo en esta versión
 - No hay servidor propio, ni base de datos, ni analíticas
 
 ## 📄 Licencia

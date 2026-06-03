@@ -1,7 +1,7 @@
 {
   "name": "mimemo",
   "short_name": "mimemo",
-  "description": "Captura y analiza tus ideas con voz",
+  "description": "Captura y ordena tu memoria con voz",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0ba2dd",
