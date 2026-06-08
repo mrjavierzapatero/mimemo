@@ -6,22 +6,32 @@ mimemo es una Progressive Web App (PWA) que te permite grabar ideas, reuniones, 
 
 ## ✨ Funcionalidades
 
-- 🎙️ **Grabación por voz** — Toca el botón y habla
+- 🎙️ **Grabación por voz** — Toca el botón y habla cuando el navegador lo permite
 - 🧠 **Clasificación local** — Distingue ideas, reuniones, tareas, notas y recordatorios sin servicios externos
 - 📅 **Recordatorios básicos** — Detecta fecha/hora y prepara avisos locales
 - 📁 **Organización** — Filtra por tipo de memoria
+- 💬 **Ask Pocket local** — Pregunta a tu memoria guardada, con límite de 2 preguntas/día en modo Pocket
+- ✅ **Tareas** — Lista local de tareas y recordatorios detectados
+- 🧩 **Mapa mental** — Visualiza tu memoria agrupada por categorías
 - ✏️ **Editar memoria** — Modifica cualquier campo después de guardar
 - 🔍 **Búsqueda** — Busca en toda tu memoria a la vez
 - 📤 **Compartir** — WhatsApp, email o copiar al portapapeles
 - 💾 **Exportar** — Descarga tu memoria en `.txt`
 - 📱 **Instalable** — Funciona como app nativa en móvil (PWA)
 
+## 🧠 Roadmap Pocket / Unlimited
+
+La versión actual implementa una capa **Pocket local**: transcripción del navegador, búsqueda, Ask limitado, tareas, mapa mental y exportación en texto plano.
+
+La capa **Unlimited** necesita backend: cuentas reales, sincronización, transcripción de alta precisión, detección de hablantes, modelos avanzados, adjuntos, descarga de audio, avisos garantizados, widgets y exportaciones completas.
+
 ## 🚀 Cómo usar
 
 1. Abre `index.html` en un servidor local o despliega en GitHub Pages / Netlify
 2. Toca el botón central para grabar una idea, reunión, tarea o recordatorio
 3. mimemo la clasifica y la guarda localmente
-4. Activa notificaciones desde Ajustes si quieres avisos locales
+4. Entra en Asistente para buscar, preguntar, revisar tareas o ver el mapa mental
+5. Activa notificaciones desde Ajustes si quieres avisos locales
 
 ## 🔔 Avisos
 
