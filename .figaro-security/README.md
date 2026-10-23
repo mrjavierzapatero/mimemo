@@ -52,6 +52,13 @@ desconocido requieren revisión específica. El control de artefactos examina el
 JavaScript público construido y valores privados disponibles en el entorno del
 proceso, también codificados de formas comunes; NO se cargan `.env` para ello.
 Un build ausente no puede darse por comprobado cuando se ha declarado necesario.
+El build de seguridad rechaza checkouts con `.env` operativos para evitar que
+Next/Vite los carguen automáticamente. Si el cliente requiere inicializar Supabase
+durante el build, se puede declarar el fixture público inerte: dominio `.invalid`
+y clave sintética, sin acceso a ningún proyecto. Esto no prueba la API de Supabase.
+Para módulos de servidor que inicializan SDK al importar, el fixture offline de
+constructores añade únicamente el texto sintético `ci-key`, nunca credenciales
+emitidas por un proveedor. Su propósito es compilar, no probar servicios reales.
 
 Las claves públicas de Supabase y Stripe pueden ser legítimas: no conceden por
 sí mismas acceso administrativo. Verificar RLS, grants y permisos del servidor;

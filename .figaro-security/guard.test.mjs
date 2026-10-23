@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {analyzeText,inspectTree,pushRanges,inspectArtifactValues,checkGovernance,main,reviewHistoryFinding} from './guard.mjs';
 import {buildEnvironment} from './with-environment.mjs';
+import {buildPlan} from './build-browser.mjs';
 import {cleanEnvironment} from './install-scanner.mjs';
 import {mkdtempSync,writeFileSync,mkdirSync,copyFileSync,chmodSync,rmSync,readFileSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -61,6 +62,14 @@ test('scanner env drops inherited bypasses, app keys and runtime injection',()=>
  delete process.env.GITLEAKS_CONFIG_TOML;delete process.env.FIGARO_TEST_SECRET;
 });
 const binary=process.env.FIGARO_TEST_SCANNER;
+test('isolated build supports only inert public fixtures, no private env or path escape',()=>{
+ process.env.PROD_API_SECRET='not-forwarded';
+ const p=buildPlan({browserBuild:{directory:'.',script:'build',fixtures:'supabase-public-client'}},'/tmp/example');
+ assert.equal(p.env.NEXT_PUBLIC_SUPABASE_URL,'https://ci.example.invalid');assert.equal(p.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,'ci-public-key');assert(!('PROD_API_SECRET'in p.env));
+ assert.throws(()=>buildPlan({browserBuild:{directory:'../outside',script:'build'}},'/tmp/example'));
+ assert.throws(()=>buildPlan({browserBuild:{directory:'.',script:'build',fixtures:'production'}},'/tmp/example'));delete process.env.PROD_API_SECRET;
+ const offline=buildPlan({browserBuild:{directory:'.',script:'build',fixtures:'offline-provider-constructors'}},'/tmp/example');assert.equal(offline.env.SUPABASE_URL,'https://ci.example.invalid');assert.equal(offline.env.OPENAI_API_KEY,'ci-key');
+});
 test('CLI invoked through a symlink still executes and blocks an invalid mode',()=>{
  const temp=mkdtempSync(path.join(tmpdir(),'figaro-cli-alias-'));
  try{const alias=path.join(temp,'guard.mjs');symlinkSync(new URL('./guard.mjs',import.meta.url).pathname,alias);const r=spawnSync(process.execPath,[alias,'invalid-mode'],{encoding:'utf8'});assert.equal(r.status,2);assert(r.stderr.includes('blocked'));}finally{rmSync(temp,{recursive:true,force:true});}
