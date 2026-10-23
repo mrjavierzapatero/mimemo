@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+# Existing default hook is preserved. Spool stdin privately so both guards see it.
+common=$(git rev-parse --path-format=absolute --git-common-dir)
+if [ -x "$common/hooks/pre-push" ]; then
+  umask 077
+  receipt=$(mktemp "${TMPDIR:-/tmp}/figaro-pre-push.XXXXXX")
+  trap 'rm -f "$receipt"' EXIT HUP INT TERM
+  cat > "$receipt"
+  "$common/hooks/pre-push" "$@" < "$receipt"
+  node "$(dirname "$0")/../guard.mjs" push < "$receipt"
+else
+  exec node "$(dirname "$0")/../guard.mjs" push
+fi

@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+common=$(git rev-parse --path-format=absolute --git-common-dir)
+if [ -x "$common/hooks/pre-commit" ]; then "$common/hooks/pre-commit" "$@"; fi
+exec node "$(dirname "$0")/../guard.mjs" staged
