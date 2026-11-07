@@ -49,7 +49,9 @@ APK resultante: `android-app/android/app/build/outputs/apk/debug/app-debug.apk`.
 El workflow `.github/workflows/leteo-android-debug.yml` usa un runner con SDK
 Android y guarda el APK de prueba como artefacto durante 7 días. Este APK de
 depuración sirve para probar en el móvil; una distribución permanente requiere
-firma y versión de lanzamiento.
+firma y versión de lanzamiento. Cada runner firma el APK de prueba con una clave
+temporal distinta: instalar otro APK de prueba puede exigir desinstalar el
+anterior y borrar sus citas. Para la prueba usa citas ficticias.
 
 ## Web de prueba y datos
 

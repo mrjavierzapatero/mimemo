@@ -56,6 +56,7 @@
       title=title.replace(/^(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'').replace(/^a las?\s+\d{1,2}(?::\d{2})?(?:\s+(?:de|por) la (?:mañana|tarde|noche))?\s*/i,'').replace(/\s+(?:vale por ahora|por ahora no quiero|no quiero guardar nada más)[\s\S]*$/i,'').trim();
       title=title.replace(/^(?:por favor\s+)?(?:ponme|ap[uú]ntame|crea|guarda|recu[eé]rdame)\s+(?:(?:una?|la)\s+)?(?:alerta|aviso|recordatorio|cita)\b/i,'');
       title=title.replace(/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi,'');
+      title=title.replace(/\b(?:cada semana|todas las semanas|semanal(?:mente)?|cada d[ií]a|todos los d[ií]as|a diario)\b/gi,'');
       title=title.replace(/\b(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?\b/gi,'');
       title=title.replace(/\ba las?\s*\d{1,2}(?::\d{2})?(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
       title=title.replace(/[,;]?\s*(?:av[ií]same|me avisas|que me avises)\b[\s\S]*$/i,'');

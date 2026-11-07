@@ -727,7 +727,6 @@ async function startNativeDictation(){
   document.getElementById('recLbl').textContent='conectando...';
   var result=await window.LeteoNativeSpeech.start({
     onText:function(text){
-      if(!keepListening)return;
       input.value=joinSpeech(base,text);
       finalTranscript=input.value;
       updateCaptureState();

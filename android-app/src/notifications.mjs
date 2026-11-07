@@ -63,10 +63,16 @@ async function syncAll(items) {
   if (ids.size !== planned.length) return { ok: false, reason: 'notification-id-collision' };
   const pending = await LocalNotifications.getPending();
   const owned = pending.notifications.filter(n => n.extra?.leteo && !n.extra?.test);
-  if (owned.length) await LocalNotifications.cancel({ notifications: owned.map(n => ({ id: n.id })) });
-  if (!planned.length) return { ok: true, count: 0 };
-  const result = await LocalNotifications.schedule({ notifications: planned });
-  if (result.warning) return { ok: false, reason: 'inexact', warning: result.warning.code };
+  const desired = new Map(planned.map(n => [n.id, n]));
+  const stale = owned.filter(n => !desired.has(n.id) || n.extra?.fingerprint !== desired.get(n.id).extra.fingerprint);
+  if (stale.length) await LocalNotifications.cancel({ notifications: stale.map(n => ({ id: n.id })) });
+  const current = new Set(owned.filter(n => !stale.includes(n)).map(n => n.id));
+  const missing = planned.filter(n => !current.has(n.id));
+  if (missing.length) {
+    const result = await LocalNotifications.schedule({ notifications: missing });
+    if (result.warning) return { ok: false, reason: 'inexact', warning: result.warning.code };
+  }
+  if (!planned.length) return { ok: true, count: 0, itemIds: [] };
   const check = await LocalNotifications.getPending();
   const confirmed = new Set(check.notifications.map(n => n.id));
   const count = planned.filter(n => confirmed.has(n.id)).length;

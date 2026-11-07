@@ -56,7 +56,7 @@ export function planNotifications(item, now = new Date()) {
       foreground: true,
       isExactNotification: true,
       isExactMandatory: true,
-      extra: { leteo: true, itemId: item.id, kind: reminder.kind }
+      extra: { leteo: true, itemId: item.id, kind: reminder.kind, fingerprint: agenda.fingerprint }
     }];
   });
 }

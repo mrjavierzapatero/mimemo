@@ -49,21 +49,30 @@ async function start(callbacks) {
       })
     ]);
     if (token !== generation) { await removeListeners(); return { ok: false, reason: 'cancelled' }; }
+    // Capgo clears accumulated words when held becomes true. Do this before
+    // starting the recognizer so the first dictated words cannot be erased.
+    await SpeechRecognition.setPTTState({ held: true });
+    if (token !== generation) {
+      await SpeechRecognition.setPTTState({ held: false });
+      await removeListeners();
+      return { ok: false, reason: 'cancelled' };
+    }
     await SpeechRecognition.start({
       language: 'es-ES', maxResults: 1, popup: false, partialResults: true,
       continuousPTT: true, allowForSilence: 3000
     });
     started = true;
     if (token !== generation) {
+      await SpeechRecognition.setPTTState({ held: false });
       await SpeechRecognition.forceStop({ timeout: 1500 });
       started = false;
       await removeListeners();
       return { ok: false, reason: 'cancelled' };
     }
-    await SpeechRecognition.setPTTState({ held: true });
     return { ok: true };
   } catch (error) {
     started = false;
+    try { await SpeechRecognition.setPTTState({ held: false }); } catch (_) {}
     await removeListeners();
     return { ok: false, reason: 'start-failed', message: String(error?.message || error) };
   }

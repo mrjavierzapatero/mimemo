@@ -229,7 +229,7 @@
     try{applySyncResult(await native.syncAll(ideas));}catch(error){updateAlertControls();}
   });
   document.addEventListener('visibilitychange',async()=>{
-    if(document.visibilityState!=='visible'||!nativeAlerts())return;
+    if(document.visibilityState!=='visible'||!nativeAlerts()||batch)return;
     try{applySyncResult(await nativeAlerts().syncAll(ideas));}catch(error){updateAlertControls();}
   });
   window.addEventListener('storage',event=>{if(event.key===SK&&curView==='calendar')$('calHelp').textContent='Tus citas han cambiado en otra pestaña. Recarga antes de guardar.';});
