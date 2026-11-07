@@ -75,7 +75,10 @@ async function stop(discard = false) {
   try {
     if (started) {
       const latest = await SpeechRecognition.getLastPartialResult();
-      if (!discard) receive(latest?.text);
+      // A native last-partial can contain only the final segment of a
+      // continuous session. Keep the longer accumulated transcription.
+      if (!discard && String(latest?.text || '').trim().length >= transcript.length)
+        receive(latest.text);
       await SpeechRecognition.setPTTState({ held: false });
       await SpeechRecognition.forceStop({ timeout: 1500 });
     }

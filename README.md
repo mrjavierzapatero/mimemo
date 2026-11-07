@@ -34,7 +34,7 @@ programados no dependen de que la página web siga abierta. Requieren que Androi
 conceda notificaciones y alarmas exactas. La prueba física en el Galaxy debe
 confirmar voz, sonido, pantalla bloqueada y una repetición real.
 
-Para compilar un APK de prueba con JDK 17 y Android SDK 36 instalados:
+Para compilar un APK de prueba con JDK 21 y Android SDK 36 instalados:
 
 ```bash
 cd android-app
