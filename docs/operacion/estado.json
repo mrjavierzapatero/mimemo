@@ -9,11 +9,11 @@
     "android": "Proyecto Capacitor 8 con reconocimiento nativo Capgo y notificaciones locales Capacitor. El planificador prepara víspera 20:00, mismo día 09:00 y una hora antes; canal de sonido, permisos de notificaciones y alarmas exactas, prueba de aviso en un minuto.",
     "verification": "61 pruebas de agenda, 40 de calendario, 6 del planificador y QA visual sintético en 390x844, 360x640 y 1440x900. Sin micrófono ni Galaxy físico.",
     "localBuild": "Bundle y sincronización Capacitor correctos. El Mac no tiene Android SDK; el ensamblado local del APK no está acreditado.",
-    "ciBuild": "Compilación de APK debug y subida de artefacto verificadas en el run 42425107493 de GitHub Actions. Cambios finales de dictado y conciliación de avisos pendientes de nueva compilación.",
+    "ciBuild": "Compilación final de Android correcta en GitHub Actions run 42425517955 (commit 335cfc8), artefacto leteo-android-debug. El commit posterior 7c32d0a solo retira una prueba obsoleta. ZIP verificado con SHA-256 d819f49e0dd1eb4d4c4732e3851b918105fe905a4ba0ce5337b5067d07988621 y APK extraído en output/android/leteo-debug.apk.",
     "publicWeb": "La publicación Vercel anterior permanece sin actualizar; la app Android empaqueta sus activos y no usa ese alojamiento para avisos.",
     "physicalGalaxyTested": false,
     "governance": "pending-provider-verification; la app actual no usa credenciales administrativas ni proveedor de push.",
-    "secretControls": "14 pruebas del guard, historial, índice, push y exportaciones de activos web/Android sin hallazgos. Governance mantiene los tres entornos en pending-provider-verification."
+    "secretControls": "14 pruebas del guard, historial, índice, push y exportaciones de activos web/Android y APK sin hallazgos. Governance mantiene los tres entornos en pending-provider-verification."
   },
   "voiceDuplicationFollowup05Nov": {
     "date": "2026-11-05",
