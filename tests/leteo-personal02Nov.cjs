@@ -1,0 +1,25 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
+const root=path.resolve(__dirname,'..'),html=fs.readFileSync(path.join(root,'index.html'),'utf8'),calendarUi=fs.readFileSync(path.join(root,'calendar-ui.js'),'utf8'),serviceWorker=fs.readFileSync(path.join(root,'sw.js'),'utf8');
+const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
+assert.equal(manifest.name,'Leteo');assert.equal(manifest.short_name,'Leteo');
+assert(!/Ask Pocket|Pocket vs Unlimited|modo Pocket|En Unlimited/.test(html));
+assert(html.includes("const SK='mimemo_ideas_v2'"));
+assert(html.includes("localStorage.getItem('mimemo_ideas_v1')"));
+assert(!html.includes('function getPlan('));assert(!html.includes('ASK_USAGE_KEY'));
+const snippet=html.slice(html.indexOf('function updateAskMeta(){'),html.indexOf('function findMemoriesFor(q){'));
+const els={askMeta:{textContent:''},askInput:{value:'',focus(){}},askAnswer:{textContent:''}},notes=[{id:'synthetic',transcript:'Nota ficticia de piano'}];let reads=0,writes=0;
+const context=vm.createContext({document:{getElementById:id=>els[id]},localStorage:{getItem(){reads++;throw Error('Legacy commercial storage must not be read');},setItem(){writes++;throw Error('Query must not write notes or usage');}},findMemoriesFor:q=>{assert.equal(q,'piano');return notes;},buildAskAnswer:(q,items)=>{assert.equal(items,notes);return 'Coincidencia local sintética';}});
+vm.runInContext(snippet,context);
+for(let n=0;n<4;n++){els.askInput.value='piano';vm.runInContext('askLeteo()',context);assert.equal(els.askAnswer.textContent,'Coincidencia local sintética');assert.equal(els.askInput.value,'');}
+assert.equal(reads,0);assert.equal(writes,0);assert(els.askMeta.textContent.includes('Sin planes ni suscripción'));
+assert(html.includes('onclick="askLeteo()"'));assert(html.includes("e.preventDefault(); askLeteo();"));
+assert(calendarUi.includes('Leteo prepara una sola cita por dictado.'));
+assert(!calendarUi.includes('Avisos elegidos:'));
+assert(!calendarUi.includes('Guardar esta entrada'));
+assert(calendarUi.includes('openBatch(text,{text,entries:[entry],editId:null})'));
+assert(html.includes('calendar-ui.js?v=20261105-voice1'));
+assert(serviceWorker.includes("leteo-v10-voice2-20261105"));
+assert(html.includes('PRUEBA DE VOZ · 2'));
+assert(html.includes("register('sw.js?v=20261105-voice2')"));
+console.log(JSON.stringify({checksPassed:11,scope:'Leteo identity and personal copy; legacy note keys preserved; no commercial tier or usage storage; four local queries; button/Enter wiring; one-citation mobile review and PWA cache update',realData:false,remoteCalls:0,physicalMobile:false}));

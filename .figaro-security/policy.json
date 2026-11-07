@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "browserBuild": null,
+  "browserArtifacts": [
+    "public",
+    "dist",
+    ".next/static",
+    "app/.next/static",
+    "frontend/.next/static"
+  ],
+  "environments": {
+    "development": {
+      "status": "pending-provider-verification"
+    },
+    "test": {
+      "status": "pending-provider-verification"
+    },
+    "production": {
+      "status": "pending-provider-verification"
+    }
+  }
+}

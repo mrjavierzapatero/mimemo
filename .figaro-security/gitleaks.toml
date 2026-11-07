@@ -1,0 +1,3 @@
+title = "Figaro Lab - secret protection"
+[extend]
+useDefault = true

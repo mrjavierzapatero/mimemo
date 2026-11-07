@@ -1,10 +1,19 @@
-const CACHE = 'mimemo-v18';
+const CACHE = 'leteo-v11-calendar-20261108';
 const ASSETS = [
   './',
+  './index.html',
+  './agenda.js?v=20261108-v2',
+  './calendar.js?v=20261108-v2',
+  './calendar-ui.js?v=20261108-v2',
+  './calendar.css?v=20261108-v2',
+  './branding.css?v=20261108-v2',
   './manifest.json',
-  './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png',
-  './assets/icons/apple-touch-icon.png',
+  './assets/icons/icon-192.png?v=leteo-20261108',
+  './assets/icons/icon-512.png?v=leteo-20261108',
+  './assets/branding/leteo-yellow.svg',
+  './assets/branding/wave-idle.svg',
+  './assets/branding/wave-recording.svg',
+  './Branding/SVG/logo_leteo_negro.svg',
 ];
 
 self.addEventListener('install', e => {
@@ -16,7 +25,7 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k.startsWith('leteo-') && k !== CACHE).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
       .then(() => self.clients.matchAll({ type: 'window', includeUncontrolled: true }))
       .then(clients => clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' })))
@@ -40,11 +49,12 @@ self.addEventListener('fetch', e => {
     e.respondWith(
       fetch(e.request)
         .then(res => {
+          if(!res.ok) throw new Error('Navigation failed');
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
           return res;
         })
-        .catch(() => caches.match(e.request))
+        .catch(async () => (await caches.match(e.request)) || (await caches.match('./index.html')) || new Response('Sin conexión', {status:503}))
     );
     return;
   }
