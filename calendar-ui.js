@@ -124,7 +124,7 @@
   // A dictation prepares one editable appointment. Multiple events are deliberately
   // not guessed or saved in a batch: capturing the next one is clearer and safer.
   window.guardarIdea=async function(){
-    if(window.LeteoNativeSpeech?.native&&keepListening)await stopSpeechRecognition(false);
+    if(window.LeteoNativeSpeech?.native&&(keepListening||nativeStopPromise))await stopSpeechRecognition(false);
     const text=$('ideaInput').value.trim();
     if(!text){focusInput();return;}
     const parsed=C.parseMany(text);

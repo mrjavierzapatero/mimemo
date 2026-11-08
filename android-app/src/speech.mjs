@@ -7,6 +7,7 @@ let listeners = [];
 let transcript = '';
 let handlers = {};
 let active = false;
+let nativeRequested = false;
 let stopping = null;
 let discardResults = false;
 
@@ -31,13 +32,15 @@ async function start(callbacks) {
   let reported = false;
   handlers = callbacks || {};
   transcript = '';
+  nativeRequested = false;
   discardResults = false;
   try {
     const permission = await Dictation.requestPermissions();
     if (token !== generation) return { ok: false, reason: 'cancelled' };
     if (permission.microphone !== 'granted') return { ok: false, reason: 'microphone-permission' };
     await removeListeners();
-    listeners = await Promise.all([
+    if (token !== generation) return { ok: false, reason: 'cancelled' };
+    const ownListeners = await Promise.all([
       Dictation.addListener('partialResults', event => {
         if (token === generation) receive(event.text);
       }),
@@ -55,7 +58,12 @@ async function start(callbacks) {
         handlers.onError?.(event);
       })
     ]);
-    if (token !== generation) { await removeListeners(); return { ok: false, reason: 'cancelled' }; }
+    if (token !== generation) {
+      await Promise.allSettled(ownListeners.map(listener => listener.remove()));
+      return { ok: false, reason: 'cancelled' };
+    }
+    listeners = ownListeners;
+    nativeRequested = true;
     const result = await Dictation.start();
     if (result?.ok === false) return result;
     if (token !== generation) {
@@ -65,7 +73,9 @@ async function start(callbacks) {
     }
     return { ok: true };
   } catch (error) {
+    if (token !== generation) return { ok: false, reason: 'cancelled' };
     active = false;
+    nativeRequested = false;
     await removeListeners();
     return { ok: false, reason: 'start-failed', reported, message: String(error?.message || error) };
   }
@@ -75,17 +85,24 @@ function stop(discard = false) {
   if (!native) return Promise.resolve();
   if (stopping) return stopping;
   discardResults = discard;
+  const shouldStopNative = nativeRequested;
+  // Cancelling a permission/startup wait must invalidate it immediately.
+  // There is no current native transcript to fetch in that case.
+  if (!shouldStopNative) ++generation;
   // Keep callbacks alive until Android closes the PCM stream and delivers
   // the final segment. Review waits for this promise before reading the text.
   stopping = (async () => {
     try {
-      const result = await Dictation.stop({ discard });
-      if (!discard) receive(result?.text || transcript);
+      if (shouldStopNative) {
+        const result = await Dictation.stop({ discard });
+        if (!discard) receive(result?.text || transcript);
+      }
     } catch (error) {
       if (!discard) handlers.onError?.({message:'No se pudo completar la última frase. Revisa el dictado antes de guardar.'});
     } finally {
       ++generation;
       active = false;
+      nativeRequested = false;
       handlers.onLevel?.(0);
       await removeListeners();
       handlers = {};

@@ -254,8 +254,10 @@ public class LeteoDictationPlugin extends Plugin {
             }
             @Override public void onError(int error) {
                 if (!current(session)) return;
-                if (session.stopRequested && error == SpeechRecognizer.ERROR_NO_MATCH && session.transcript.text().isEmpty()) {
-                    finish(session, "no-speech", true);
+                if (session.stopRequested && (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)) {
+                    // A silent last segment after an explicit stop is normal;
+                    // retain every previous segment and the latest partial.
+                    finish(session, "user-stop", false);
                 } else {
                     String message = error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS
                         ? "Activa el permiso del micrófono para dictar."
@@ -272,7 +274,7 @@ public class LeteoDictationPlugin extends Plugin {
     public void stop(PluginCall call) {
         main.post(() -> {
             Session session = active;
-            if (session == null) { call.resolve(new JSObject().put("text", lastText).put("final", true)); return; }
+            if (session == null) { call.resolve(new JSObject().put("text", "").put("final", true)); return; }
             session.stops.add(call);
             if (session.ended) {
                 if (Boolean.TRUE.equals(call.getBoolean("discard", false))) session.discard = true;

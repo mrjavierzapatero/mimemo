@@ -709,10 +709,12 @@ function stopSpeechRecognition(discardPending){
     if(nativeStopPromise)return nativeStopPromise;
     setMicState(false);
     var button=document.getElementById('recBtn');
+    var input=document.getElementById('ideaInput');
     button.disabled=true;
+    input.readOnly=true;
     document.getElementById('recLbl').textContent='Terminando…';
     nativeStopPromise=window.LeteoNativeSpeech.stop(!!discardPending).finally(function(){
-      nativeStopPromise=null;button.disabled=false;setMicState(false);
+      nativeStopPromise=null;button.disabled=false;input.readOnly=false;setMicState(false);
     });
     return nativeStopPromise;
   }
