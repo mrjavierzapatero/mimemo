@@ -4,7 +4,7 @@ import path from 'node:path';
 const root = path.resolve(import.meta.dirname, '../..');
 const out = path.resolve(import.meta.dirname, '../www');
 const files = [
-  'index.html', 'branding.css', 'calendar.css', 'agenda.js', 'calendar.js',
+  'index.html', 'branding.css', 'calendar.css', 'agenda.js', 'calendar.js', 'waveform.js',
   'calendar-ui.js', 'manifest.json',
   'assets/icons/leteo-icon.svg', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
   'assets/branding/leteo-yellow.svg', 'assets/branding/wave-idle.svg',

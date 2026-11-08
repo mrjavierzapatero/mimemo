@@ -10,23 +10,18 @@ body{font-family:Roboto,Arial,sans-serif}
 #vGrabar .capture-brand{position:absolute;top:calc(13.5dvh + env(safe-area-inset-top,0px));left:0;right:0;display:flex;justify-content:center;transition:opacity .25s ease}
 #vGrabar .home-logo{width:90px;opacity:1;filter:none;margin:0}
 #vGrabar .capture-center{position:absolute;top:41%;left:0;right:0;display:flex;align-items:center;flex-direction:column}
-#vGrabar .rec-btn{margin:0;border:0;border-radius:0;background:none;box-shadow:none;width:min(88vw,400px);height:110px;display:flex;flex-direction:column;gap:20px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
+#vGrabar .rec-btn{margin:0;border:0;border-radius:0;background:none;box-shadow:none;width:min(88vw,400px);height:120px;display:flex;flex-direction:column;gap:14px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
 #vGrabar .rec-btn::before{display:none}
 #vGrabar .rec-btn:active{transform:none}
-.wave-stage{height:53px;width:100%;display:flex;align-items:center;justify-content:center}
+.wave-stage{height:72px;width:100%;display:flex;align-items:center;justify-content:center}
 .voice-wave{display:block;overflow:visible;flex:none}
 .voice-wave-idle{width:73px;height:43px}
-#vGrabar .voice-wave-recording{display:none;width:min(78vw,346px);height:75px}
+#vGrabar .voice-wave-recording{display:none;width:min(84vw,360px);height:auto;max-height:104px}
 #vGrabar .g-lbl{font-size:12px;font-weight:700;letter-spacing:0;color:#111;opacity:1;line-height:16px;margin:0;text-transform:uppercase}
 .write-button{border:0;background:none;font:inherit;font-size:13px;color:#626262;padding:13px 20px;margin-top:12px;cursor:pointer;min-height:44px}
 #vGrabar.is-recording .capture-brand{opacity:0}
 #vGrabar.is-recording .voice-wave-idle{display:none}
 #vGrabar.is-recording .voice-wave-recording{display:block}
-.is-recording .wave-layer{transform-box:fill-box;transform-origin:center;animation:leteo-wave 1.2s ease-in-out infinite alternate}
-.is-recording .wave-layer-2{animation-delay:-.45s;animation-duration:.9s}
-.is-recording .wave-layer-3{animation-delay:-.8s;animation-duration:1.45s}
-.is-recording .wave-stage{transform:scaleY(var(--mic-scale, 1));transition:transform 80ms linear}
-@keyframes leteo-wave{from{scale:1 .66;translate:0 -1px}to{scale:1 1.18;translate:0 1px}}
 #vGrabar .voice-wrap{position:absolute;top:calc(41% + 144px);left:26px;right:26px;width:auto;max-width:440px;margin:0 auto;padding:0;background:none;border:0;border-radius:0;box-shadow:none;min-height:0;display:block}
 #vGrabar .voice-wrap[hidden]{display:none}
 #vGrabar .voice-wrap::before,#vGrabar .voice-wrap::after{display:none}

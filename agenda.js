@@ -48,20 +48,34 @@
       (out.date&&/\b(?:cada semana|todas las semanas|semanal(?:mente)?)\b/.test(lo)))out.recurrence='weekly';
     if(weekdayHits.length>1)out.issues.push('Hay varios días: prepara cada rutina por separado.');
     if(/\b(cada mes|mensual|quincenal|cada dos)\b/.test(lo)){out.date='';out.issues.push('Esa repetición todavía no se interpreta: elige una fecha y repetición explícitas.');}
-    const clock=lo.match(/\b(?:a las?\s*)?(\d{1,2})[:h](\d{2})\b/);
+    const clocks=[...lo.matchAll(/\b(?:a las?\s*)?(\d{1,2})[:h](\d{2})\b/g)];
+    const correctedClock=clocks.length>1&&clocks.every((hit,i)=>{
+      if(i===0)return true;
+      const previous=clocks[i-1],between=lo.slice(previous.index+previous[0].length,hit.index);
+      return /^[\s,;]*(?:(?:perdon|no|mejor|quiero decir)\s*[,;]?\s*)?$/.test(between);
+    });
+    const clock=correctedClock?clocks.at(-1):clocks[0];
     const spoken=lo.match(/\ba (?:las|la) (\d{1,2}|una|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)(?: y (media|cuarto))?(?: de la (manana|tarde|noche))?\b/);
     if(clock){
-      let h=Number(clock[1]);const period=(lo.match(/de la (manana|tarde|noche)/)||[])[1];
+      let h=Number(clock[1]);
+      const after=lo.slice(clock.index+clock[0].length);
+      const period=(after.match(/^\s*(?:de|por) la (manana|tarde|noche)\b/)||[])[1];
       if(period&&h>=1&&h<=12){if(period==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(period==='tarde'&&h<12)h+=12;}
       else if(period){out.issues.push('La hora y la franja del día no coinciden.');h=99;}
-      if(!period&&h>=1&&h<=11){out.issues.push('Confirma si la hora es de la mañana o de la tarde.');}
-      else out.time=pad(h)+':'+pad(clock[2]);
+      if(!period&&h>=1&&h<=11){
+        if(h<=7)h+=12;
+        out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(clock[2])+'. Confirma mañana o tarde antes de guardar.');
+      }
+      out.time=pad(h)+':'+pad(clock[2]);
     }
     else if(spoken){
       let h=nums[spoken[1]]||Number(spoken[1]),m=spoken[2]==='media'?30:spoken[2]==='cuarto'?15:0;
       if(spoken[3]){if(h<1||h>12)out.issues.push('La hora y la franja del día no coinciden.');else if(spoken[3]==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(spoken[3]==='tarde'&&h<12)h+=12;}
-      if(!spoken[3]&&h<=12)out.issues.push('Confirma mañana/tarde con una hora en formato24h.');
-      else out.time=pad(h)+':'+pad(m);
+      if(!spoken[3]&&h<=12){
+        if(h>=1&&h<=7)h+=12;
+        out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(m)+'. Confirma mañana o tarde antes de guardar.');
+      }
+      out.time=pad(h)+':'+pad(m);
     }
     const loc=String(text).match(/\ben\s+(.+?)(?=\s+(?:mañana\b|hoy\b|pasado mañana\b|a las?(?=\s|\d)|el (?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b|cada\b)|[.;\n]|$)/i);
     if(loc)out.location=loc[1].trim().slice(0,160);
@@ -73,7 +87,10 @@
     if(/\bhoy\b/.test(lo)&&/\bmanana\b/.test(lo.replace(/de la manana/g,''))){out.date='';out.issues.push('Aparecen hoy y mañana: confirma una fecha.');}
     if(/\b(cancelar|cancela|anular|anula|cambia|cambiar)\b/.test(lo)){out.date='';out.time='';out.issues.push('Para cambiar o cancelar, abre la memoria guardada y usa Editar. Este campo prepara una cita nueva.');}
     if((lo.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{4}\b/g)||[]).length>1||(lo.match(/\b\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/g)||[]).length>1){out.date='';out.issues.push('Hay varias fechas: prepara cada cita por separado.');}
-    if((lo.match(/\b\d{1,2}[:h]\d{2}\b/g)||[]).length>1){out.time='';out.issues.push('Hay varias horas: elige una hora explícita.');}
+    if(clocks.length>1){
+      if(correctedClock)out.issues.push('He tomado la última hora indicada, '+out.time+'. Revisa que sea la correcta.');
+      else {out.time='';out.issues.push('Hay varias horas: elige una hora explícita.');}
+    }
     const temporal=!!(full||named||clock||spoken||weekdayHits.length||/\b(hoy|manana|cada dia|a diario)\b/.test(lo));
     out.isAgenda=temporal||/\b(cita|dentista|reunion|rutina|recordar|recuerdame|avisame)\b/.test(lo);
     if(out.date&&!validDate(out.date)){out.issues.push('La fecha indicada no existe.');out.date='';}

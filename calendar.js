@@ -59,7 +59,7 @@
       title=title.replace(/\b(?:cada semana|todas las semanas|semanal(?:mente)?|cada d[ií]a|todos los d[ií]as|a diario)\b/gi,'');
       title=title.replace(/\b(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?\b/gi,'');
       title=title.replace(/\ba las?\s*\d{1,2}(?::\d{2})?(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
-      title=title.replace(/[,;]?\s*(?:av[ií]same|me avisas|que me avises)\b[\s\S]*$/i,'');
+      title=title.replace(/[,;]?\s*(?:(?:y\s+)?entonces\s+)?(?:av[ií]same|me avisas|que me avises|tienes que avisarme|me tienes que avisar)\b[\s\S]*$/i,'');
       title=title.replace(/^[\s,.;]*(?:que\s+)?(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'');
       title=title.replace(/^[\s,.;]+|[\s,.;]+$/g,'').replace(/\s+/g,' ');
       if(title)title=title[0].toUpperCase()+title.slice(1);

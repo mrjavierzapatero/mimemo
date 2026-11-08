@@ -1,5 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { SpeechRecognition } from '@capgo/capacitor-speech-recognition';
+import { textFromSpeechEvent, keepLongerPartial } from './speech-events.mjs';
 
 const native = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 let generation = 0;
@@ -14,9 +15,10 @@ async function removeListeners() {
   await Promise.allSettled(old.map(listener => listener.remove()));
 }
 
-function receive(value) {
+function receive(value, final = false) {
   const next = String(value || '').trim();
   if (!next) return;
+  if (!final && keepLongerPartial(transcript, next)) return;
   transcript = next;
   handlers.onText?.(next);
 }
@@ -36,7 +38,8 @@ async function start(callbacks) {
     listeners = await Promise.all([
       SpeechRecognition.addListener('partialResults', event => {
         if (token !== generation) return;
-        receive(event.accumulatedText || event.matches?.[0] || event.accumulated);
+        const result = textFromSpeechEvent(event);
+        receive(result.text, result.final);
       }),
       SpeechRecognition.addListener('audioLevel', event => {
         if (token === generation) handlers.onLevel?.(Math.max(0, Math.min(1, Number(event.level) || 0)));
@@ -59,7 +62,7 @@ async function start(callbacks) {
     }
     await SpeechRecognition.start({
       language: 'es-ES', maxResults: 1, popup: false, partialResults: true,
-      continuousPTT: true, allowForSilence: 3000
+      continuousPTT: true
     });
     started = true;
     if (token !== generation) {

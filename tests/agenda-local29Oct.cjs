@@ -26,7 +26,7 @@ const legacy={id:'legacy',title:'Idea sintética intacta',category:'nota',transc
  await test('fecha numérica española',()=>assert.equal(A.parse('03/11/2026 a las18:30',now).date,'2026-11-03'));
  await test('fecha con mes y año',()=>assert.equal(A.parse('3 de noviembre de2027 a las18:30'.replace('de2027','de 2027'),now).date,'2027-11-03'));
  await test('lugar literal separado de hora',()=>assert.equal(A.parse('mañana dentista en Clínica Sintética a las10:30',now).location,'Clínica Sintética'));
- await test('hora hablada exige franja',()=>assert.equal(A.parse('mañana a las cinco y media',now).time,''));
+ await test('hora hablada propone tarde y pide confirmación',()=>{const p=A.parse('mañana a las cinco y media',now);assert.equal(p.time,'17:30');assert(p.issues.some(x=>x.includes('Confirma mañana o tarde')));});
  await test('hora hablada con tarde',()=>assert.equal(A.parse('mañana a las cinco y media de la tarde',now).time,'17:30'));
  await test('hora con minutos y tarde',()=>assert.equal(A.parse('mañana a las5:30 de la tarde',now).time,'17:30'));
  await test('hora sola no inventa fecha',()=>assert.equal(A.parse('dentista a las15:30',now).date,''));
@@ -44,7 +44,7 @@ const legacy={id:'legacy',title:'Idea sintética intacta',category:'nota',transc
  await test('hora válida verano',()=>assert.equal(A.resolve('2027-07-01','18:00').instant,'2027-07-01T16:00:00.000Z'));
  await test('hora válida invierno',()=>assert.equal(A.resolve('2027-01-01','18:00').instant,'2027-01-01T17:00:00.000Z'));
  await test('tres avisos civiles: víspera20, mismo día09 y una hora antes',()=>{const a=A.prepare(fields(),now).agenda,r=a.occurrences[0].reminders;assert.deepEqual(r.map(x=>x.kind),['day-before','same-day-morning','one-hour-before']);assert.deepEqual(r.map(x=>x.at),['2026-11-02T19:00:00.000Z','2026-11-03T08:00:00.000Z','2026-11-03T16:30:00.000Z']);assert(r.every(x=>!x.sent&&x.previewOnly));});
- await test('3:45 sin franja no se convierte en 03:45',()=>{const p=A.parse('todos los jueves a las 3:45 clase de piano','2026-11-07T12:00:00Z');assert.equal(p.recurrence,'weekly');assert.equal(p.date,'2026-11-12');assert.equal(p.time,'');assert(p.issues.some(x=>x.includes('mañana o de la tarde')));});
+ await test('3:45 propone 15:45 y pide confirmación visible',()=>{const p=A.parse('todos los jueves a las 3:45 clase de piano','2026-11-07T12:00:00Z');assert.equal(p.recurrence,'weekly');assert.equal(p.date,'2026-11-12');assert.equal(p.time,'15:45');assert(p.issues.some(x=>x.includes('Confirma mañana o tarde')));});
  await test('rutina semanal de hoy ya pasada salta al jueves próximo',()=>{const p=A.parse('todos los jueves a las 15:45 clase de piano','2026-11-12T16:00:00Z');assert.equal(p.date,'2026-11-19');});
  await test('cada semana con fecha clara activa repetición',()=>{const p=A.parse('piano el lunes a las 15:45 cada semana','2026-11-07T12:00:00Z');assert.equal(p.recurrence,'weekly');assert.equal(p.date,'2026-11-09');});
  await test('avisos que ya pasaron se omiten',()=>assert(A.prepare(fields({date:'2026-10-29',time:'22:30'}),now).agenda.occurrences[0].reminders.every(r=>r.status==='omitted-past')));
