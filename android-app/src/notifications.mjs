@@ -79,23 +79,10 @@ async function syncAll(items) {
   return count === planned.length ? { ok: true, count, itemIds: [...new Set(planned.map(n => n.extra.itemId))] } : { ok: false, reason: 'missing-pending', count };
 }
 
-async function testNotice() {
-  const ready = await ensureReady(true);
-  if (!ready.ok) return ready;
-  const id = 206701107;
-  const result = await LocalNotifications.schedule({ notifications: [{
-    id, title: 'Prueba de Leteo', body: 'Si oyes este aviso, el sonido está activo.',
-    schedule: { at: new Date(Date.now() + 60000), allowWhileIdle: true },
-    channelId, foreground: true, isExactNotification: true, isExactMandatory: true,
-    extra: { leteo: true, test: true }
-  }] });
-  return result.warning ? { ok: false, reason: 'inexact' } : { ok: true, dueInSeconds: 60 };
-}
-
 async function activateAll(items) {
   const ready = await ensureReady(true);
   if (!ready.ok) return ready;
   return syncAll(items);
 }
 
-window.LeteoNativeAlerts = { native, ensureReady, cancelItem, scheduleItem, syncAll, activateAll, testNotice };
+window.LeteoNativeAlerts = { native, ensureReady, cancelItem, scheduleItem, syncAll, activateAll };

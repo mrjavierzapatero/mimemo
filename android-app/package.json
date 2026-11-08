@@ -11,8 +11,7 @@
   "dependencies": {
     "@capacitor/android": "8.6.0",
     "@capacitor/core": "8.6.0",
-    "@capacitor/local-notifications": "8.3.1",
-    "@capgo/capacitor-speech-recognition": "8.4.6"
+    "@capacitor/local-notifications": "8.3.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.0",

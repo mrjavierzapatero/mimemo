@@ -6,7 +6,7 @@ const out = path.resolve(import.meta.dirname, '../www');
 const files = [
   'index.html', 'branding.css', 'calendar.css', 'agenda.js', 'calendar.js', 'waveform.js',
   'calendar-ui.js', 'manifest.json',
-  'assets/icons/leteo-icon.svg', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
+  'assets/icons/PHOSPHOR-LICENSE.txt', 'assets/icons/leteo-icon.svg', 'assets/icons/icon-192.png', 'assets/icons/icon-512.png',
   'assets/branding/leteo-yellow.svg', 'assets/branding/wave-idle.svg',
   'assets/branding/wave-recording.svg', 'Branding/SVG/logo_leteo_negro.svg'
 ];

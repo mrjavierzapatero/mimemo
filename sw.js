@@ -1,13 +1,13 @@
-const CACHE = 'leteo-v12-voice-20261108';
+const CACHE = 'leteo-v13-continuous-20261108';
 const ASSETS = [
   './',
   './index.html',
-  './agenda.js?v=20261108-v3',
-  './waveform.js?v=20261108-v3',
-  './calendar.js?v=20261108-v3',
-  './calendar-ui.js?v=20261108-v3',
-  './calendar.css?v=20261108-v3',
-  './branding.css?v=20261108-v3',
+  './agenda.js?v=20261108-v4',
+  './waveform.js?v=20261108-v4',
+  './calendar.js?v=20261108-v4',
+  './calendar-ui.js?v=20261108-v4',
+  './calendar.css?v=20261108-v4',
+  './branding.css?v=20261108-v4',
   './manifest.json',
   './assets/icons/icon-192.png?v=leteo-20261108',
   './assets/icons/icon-512.png?v=leteo-20261108',
