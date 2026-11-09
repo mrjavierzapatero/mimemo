@@ -50,5 +50,27 @@ test('la frecuencia semanal queda en el campo de repetición',()=>{const p=C.par
 test('15:45 y «o sea» no generan dudas sobre la hora ni sobre el jueves',()=>{const now='2026-11-09T10:00:00Z';const p=C.parseMany('tengo clase de piano, o sea, todos los jueves a las 15:45 de la tarde',now).entries[0];assert.equal(p.date,'2026-11-12');assert.equal(p.time,'15:45');assert.equal(p.recurrence,'weekly');assert.deepEqual(p.issues,[]);assert.equal(C.prepare(p,now).ok,true);});
 test('un final cortado no inventa día; seleccionar jueves completa la cita semanal',()=>{const now='2026-11-09T10:00:00Z';const p=C.parseMany('clase de piano, o sea, las 15:45 todos los...',now).entries[0];assert.equal(p.title,'Clase de piano');assert.equal(p.date,'');assert.equal(p.time,'15:45');assert.equal(p.recurrence,'weekly');assert.equal(C.prepare(p,now).ok,false);const date=C.nextWeekday(4,p.time,now);assert.equal(date,'2026-11-12');const saved=C.prepare({...p,date},now);assert.equal(saved.ok,true);assert.equal(saved.agenda.occurrences[1].date,'2026-11-19');});
 test('seleccionar jueves después de las 15:45 comienza el jueves siguiente',()=>{assert.equal(C.nextWeekday(4,'15:45','2026-11-12T15:00:00Z'),'2026-11-19');});
+test('los jueves a las cuatro menos cuarto y la cita médica se muestran en su día y hora',()=>{
+  const now='2026-11-09T10:00:00Z';
+  const piano=C.parseMany('Los jueves, los jueves a las cuatro menos cuarto de la tarde tengo clase de piano',now).entries;
+  assert.equal(piano.length,1);
+  const doctor=C.parseMany('El jueves día diecinueve de noviembre a las diez y cuarto de la mañana tengo médico en el centro de salud',now).entries[0];
+  const stored=[piano[0],doctor].map((entry,i)=>{const result=C.prepare(entry,now);assert(result.ok);return item(result.agenda,String(i));});
+  const slots=date=>C.events(stored,date,date).map(e=>[e.time,e.title,e.recurrence]);
+  assert.deepEqual(slots('2026-11-12'),[['15:45','Clase de piano','weekly']]);
+  assert.deepEqual(slots('2026-11-19'),[['10:15','Médico en el centro de salud','none'],['15:45','Clase de piano','weekly']]);
+});
+test('si se corrige diez y cuarto por cuatro menos cuarto, se conserva 15:45',()=>{
+  const p=C.parseMany('Los jueves a las diez y cuarto, no, cuatro menos cuarto de la tarde tengo clase de piano','2026-11-09T10:00:00Z').entries[0];
+  assert.equal(p.time,'15:45');assert.equal(p.title,'Clase de piano');
+});
+test('falta de hora y cita explícitamente sin hora son casos distintos',()=>{
+  const now='2026-11-09T10:00:00Z';
+  const missing=C.parseMany('Los jueves tengo clase de piano',now).entries[0];
+  assert.equal(missing.allDay,false);assert.equal(C.prepare(missing,now).ok,false);
+  const confirmed=C.prepare({...missing,allDay:true},now);assert.equal(confirmed.ok,true);assert.equal(confirmed.agenda.time,'');
+  const partial=C.parseMany('Los jueves',now).entries[0];
+  assert.equal(partial.title,'');assert.equal(C.prepare({...partial,allDay:true},now).ok,false);
+});
 const result={clock:now,total:tests.length,passed:tests.filter(t=>t.pass).length,failed:tests.filter(t=>!t.pass).length,tests,externalWrites:0,realAudioUsed:false};
 console.log(JSON.stringify(result,null,2));if(result.failed)process.exitCode=1;

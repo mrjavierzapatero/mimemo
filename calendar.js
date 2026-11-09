@@ -6,6 +6,7 @@
   'use strict';
   const fold=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const dayNames=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const explicitAllDay=/\b(?:sin hora(?: indicada)?|todo el d[ií]a)\b/i;
   const namedDatePrefix='(?:(?:el|este|pr[oó]ximo)\\s+)?(?:d[ií]a\\s+)?(?:(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\\b\\s*,?\\s*(?:d[ií]a\\s+)?)?';
   const iso=d=>d.toISOString().slice(0,10);
   const civil=d=>new Date(d+'T12:00:00Z');
@@ -34,6 +35,9 @@
       if(/(?:de|por) la\s*$/.test(before)||/\bo\s*$/.test(before))continue;
       // A weekday followed by a spelled-out date describes one date, not two entries.
       if(anchors.length&&/ de $/.test(text.slice(anchors.at(-1).index,m.index)))continue;
+      const previous=anchors.at(-1),day=fold(m[0]);
+      if(previous&&dayNames.includes(day)&&fold(previous.anchor)===day&&
+         /^[\s,.;…]*(?:(?:todos los|todas las|cada|los)\s+)?$/.test(fold(text.slice(previous.anchorIndex+previous.anchor.length,m.index))))continue;
       let index=m.index;
       const connector=text.slice(0,index).match(/(?:\s+|[,.;])(?:(?:y\s+)?luego|y despu[eé]s|despu[eé]s|en el d[ií]a|y)\s*$/i);
       if(connector)index=connector.index;
@@ -52,7 +56,7 @@
     let input=raw.replace(/por la (mañana|tarde|noche)/gi,'de la $1').replace(/esta (tarde|noche|mañana)/gi,'hoy');
     if(timePeriod&&!/de la (mañana|tarde|noche)/i.test(input))input+=' de la '+timePeriod.replace('manana','mañana');
     const p=A.parse(input,now),issues=p.issues.filter(i=>!i.startsWith('Falta una hora'));
-    const numbered=lo.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+(\d{1,2})(?!\s+de\b)\b/);
+    const numbered=lo.match(/\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+(\d{1,2})\b(?!\s*(?:[:h]\s*\d|de\b|menos\b|y\s+))/);
     if(numbered&&p.date&&Number(p.date.slice(-2))!==Number(numbered[2])){p.date='';issues.push('El día del mes no coincide con el día de la semana. Revisa la fecha.');}
     // Explicit places only: reject discourse such as "en adelante" and "en el día".
     const loc=raw.match(/\ben\s+((?!(?:adelante|luego|el d[ií]a|para|cuanto|esa fecha)\b)[^.;\n]+?)(?=\s+(?:a las?\b|hoy\b|mañana\b|luego\b|cada\b|todos los\b|mandarle\b|tengo que\b|(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b)|[.;\n]|$)/i);
@@ -63,31 +67,32 @@
     else {
       title=title.replace(/^(?:\s|[,.;]|luego\b|y\b|después\b|en el día\b)+/gi,'').trim();
       title=title.replace(new RegExp('^'+namedDatePrefix+A.namedDatePattern+'\\s*','i'),'');
+      title=title.replace(new RegExp(A.timePattern,'gi'),'\u0000')
+        .replace(/\u0000[\s,;]*(?:(?:perd[oó]n|no|mejor|quiero decir|o sea)[\s,;]*)?(?=\u0000)/gi,'')
+        .replace(/\u0000/g,'');
       title=title.replace(/^(?:el día de )?(?:hoy|mañana|pasado mañana|esta tarde|esta noche|(?:el |este |próximo )?(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)(?:\s+\d{1,2})?|\d{1,2}[\/-]\d{1,2}[\/-]\d{4})\s*/i,'');
       title=title.replace(/^(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'').replace(/\s+(?:vale por ahora|por ahora no quiero|no quiero guardar nada más)[\s\S]*$/i,'').trim();
       title=title.replace(/^(?:por favor\s+)?(?:ponme|ap[uú]ntame|crea|guarda|recu[eé]rdame)\s+(?:(?:una?|la)\s+)?(?:alerta|aviso|recordatorio|cita)\b/i,'');
-      title=title.replace(/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi,'');
+      title=title.replace(/\b(?:cada|(?:todos )?los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi,'');
       title=title.replace(/\b(?:cada semana|todas las semanas|semanal(?:mente)?|cada d[ií]a|todos los d[ií]as|a diario)\b/gi,'');
       title=title.replace(/\b(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?\b/gi,'');
-      title=title.replace(/\b(?:a\s+)?las?\s*\d{1,2}\s*[:h]\s*\d{2}(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
-      title=title.replace(new RegExp(A.spokenTimePattern,'gi'),'');
+      title=title.replace(explicitAllDay,'');
       title=title.replace(/\b(?:todos los|todas las)[\s.,…]*$/i,'').replace(/\bo sea[\s,.;…]*$/i,'');
       title=title.replace(/[,;]?\s*(?:(?:y\s+)?entonces\s+)?(?:av[ií]same|me avisas|que me avises|tienes que avisarme|me tienes que avisar)\b[\s\S]*$/i,'');
       title=title.replace(/^[\s,.;]*(?:que\s+)?(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'');
       title=title.replace(/^[\s,.;]+|[\s,.;]+$/g,'').replace(/\s+/g,' ');
       if(title)title=title[0].toUpperCase()+title.slice(1);
     }
-    // An absent hour is a date-only entry, visibly pending a reminder time; never midnight by inference.
-    const allDay=!p.time;
-    if(allDay)issues.push('Sin hora indicada: se guarda en el día. La hora de los avisos queda pendiente.');
+    // Missing or misheard times must be reviewed before saving a timed appointment.
+    const allDay=!p.time&&(birthday||explicitAllDay.test(raw));
     const noRepeat=/\b(?:sin repetir|no repetir|no lo repitas|solo este a[nñ]o)\b/i.test(raw);
-    return {title:(title||raw).slice(0,80),date:p.date,time:p.time,allDay,location:location.slice(0,160),recurrence:birthday&&!noRepeat?'yearly':noRepeat?'none':p.recurrence,issues,source:raw,sourceStart:source.start,sourceEnd:source.end,isAgenda:p.isAgenda||birthday};
+    return {title:title.slice(0,80),date:p.date,time:p.time,allDay,location:location.slice(0,160),recurrence:birthday&&!noRepeat?'yearly':noRepeat?'none':p.recurrence,issues,source:raw,sourceStart:source.start,sourceEnd:source.end,isAgenda:p.isAgenda||birthday};
   }
   function parseMany(text,now=new Date().toISOString()){
     const raw=String(text||'').trim();
     if(!raw)return {text:raw,entries:[],isAgenda:false};
     const entries=[];
-    const parts=/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+y\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(raw)?[{text:raw,start:0,end:raw.length}]:sourceParts(raw);
+    const parts=/\b(?:cada|(?:todos )?los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+y\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/i.test(raw)?[{text:raw,start:0,end:raw.length}]:sourceParts(raw);
     for(const part of parts){
       const literal=raw.slice(part.start,part.end),boundaries=[0];
       for(const m of literal.matchAll(/\s+(?:y|luego|despu[eé]s)\s+(?=(?:a las?\s*(?:\d{1,2}|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\b|cumplea[ñn]os\b))/gi))boundaries.push(m.index);
@@ -106,6 +111,7 @@
     const errors=[],title=String(fields.title||'').trim();
     if(!title)errors.push('Falta el título.');
     if(!valid(fields.date))errors.push('Falta una fecha válida.');
+    if(!fields.allDay&&!fields.time)errors.push('Elige la hora o marca «Guardar sin hora».');
     if(!['none','daily','weekly','yearly'].includes(fields.recurrence||'none'))errors.push('Repetición no admitida.');
     if(errors.length)return {ok:false,errors};
     const recurrence=fields.recurrence||'none';
