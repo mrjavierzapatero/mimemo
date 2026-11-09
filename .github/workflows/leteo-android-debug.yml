@@ -25,6 +25,13 @@ jobs:
       - name: Install pinned Android dependencies
         working-directory: android-app
         run: npm ci --no-audit --no-fund
+      - name: Check dictated dates and calendar review
+        run: |
+          node tests/dictated-date4.cjs
+          node tests/date-review-ui.cjs
+          node tests/agenda-local29Oct.cjs
+          node tests/calendar31Oct.cjs
+          node tests/notification-planner.mjs
       - name: Bundle the local web view and brand assets
         working-directory: android-app
         run: |

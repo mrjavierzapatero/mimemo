@@ -41,16 +41,24 @@
   }
   function fields(i){return {title:$('bTitle'+i).value,date:$('bDate'+i).value,time:$('bTime'+i).value,allDay:$('bAll'+i).checked,location:$('bPlace'+i).value,recurrence:$('bRepeat'+i).value};}
   function weekdayName(date){return C.valid(date)?new Intl.DateTimeFormat('es-ES',{weekday:'long',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z')):'';}
+  function reviewDate(date){return date.slice(8,10)+'/'+date.slice(5,7)+'/'+date.slice(0,4);}
+  function reviewTime(time){
+    const hour=Number(time.slice(0,2));
+    return time+(hour<6?' de la madrugada':hour<12?' de la mañana':hour===12?' del mediodía':hour<21?' de la tarde':' de la noche');
+  }
   function refreshBatch(){
     if(!batch)return;
     let selected=0,invalid=0;
     batch.entries.forEach((entry,i)=>{
-      const f=fields(i),result=C.prepare(f),weekday=weekdayName(f.date);
+      const f=fields(i),result=C.prepare(f),weekday=weekdayName(f.date),missingDate=!C.valid(f.date);
       $('bTime'+i).disabled=f.allDay;
       $('bRepeat'+i).querySelector('option[value="weekly"]').textContent=weekday?'Cada '+weekday:'Cada semana';
-      const unresolved=(entry.issues||[]).filter(issue=>(!f.time&&/ambigua|mañana o tarde|mañana\/tarde|confirma.*hora|mañana.*tarde/i.test(issue))||(!f.date&&/coincide|fecha/i.test(issue))||(f.time===entry.time&&/he interpretado la hora|he tomado la última hora/i.test(issue)));
-      const weekly=f.recurrence==='weekly'&&weekday?'Se repetirá cada '+weekday+' desde el '+f.date.slice(8,10)+'/'+f.date.slice(5,7)+'/'+f.date.slice(0,4)+'.':'';
-      $('bIssue'+i).textContent=[...unresolved,!result.ok?result.errors.join(' '):f.allDay?'Se guardará en ese día, sin hora.':'Fecha y hora listas para guardar.',weekly].filter(Boolean).join(' ');
+      const unresolved=(entry.issues||[]).filter(issue=>!/^Falta una fecha/i.test(issue)&&((!f.allDay&&!f.time&&/ambigua|mañana o tarde|mañana\/tarde|confirma.*hora|mañana.*tarde/i.test(issue))||(missingDate&&/coincide|fecha/i.test(issue))||(!f.allDay&&f.time===entry.time&&/he interpretado la hora|he tomado la última hora/i.test(issue))));
+      const errors=result.ok?[]:result.errors.filter(error=>!missingDate||!/^Falta una fecha/i.test(error));
+      const dateHelp=missingDate?'Toca el campo Fecha para completar la fecha; no hace falta repetir el dictado.':'';
+      const summary=result.ok?reviewDate(f.date)+' · '+(f.allDay?'Sin hora indicada':reviewTime(f.time))+'.':'';
+      const weekly=f.recurrence==='weekly'&&weekday?'Se repetirá cada '+weekday+' desde el '+reviewDate(f.date)+'.':'';
+      $('bIssue'+i).textContent=[...unresolved,...errors,dateHelp,summary,weekly].filter(Boolean).join(' ');
       selected++;if(!result.ok)invalid++;
     });
     $('batchSave').disabled=!selected||!!invalid;

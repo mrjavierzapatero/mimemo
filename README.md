@@ -1,14 +1,15 @@
 # Leteo
 
 Leteo es la agenda personal de Javier. Su pantalla principal sigue la segunda
-página de `Branding/branding Leteo-v2.ai`: blanco, logotipo amarillo y tres ondas
-vectoriales. «No olvidar» abre el dictado; «Casa» abre el calendario de mes. Una
+página de `Branding/branding Leteo-v2.ai`: blanco y logotipo amarillo. El micrófono
+amarillo acompaña a «No olvidar»; las ondas aparecen durante el dictado.
+«No olvidar» abre el dictado; «Casa» abre el calendario de mes. Una
 pulsación prolongada sobre una semana abre la semana, y sobre un día abre el día.
 Los puntos negros del mes cuentan citas, no avisos.
 
 ## Cómo funciona
 
-1. Toca «No olvidar» y dicta una sola cita, o toca «Escribir».
+1. Toca «No olvidar» y dicta una sola cita.
 2. Revisa el texto, la fecha, la hora, el lugar y la repetición. Una hora como
    «3:45» sin mañana o tarde queda por confirmar, para evitar una alarma a las
    03:45 cuando querías 15:45.
@@ -16,8 +17,7 @@ Los puntos negros del mes cuentan citas, no avisos.
    futuros: víspera a las 20:00, mismo día a las 09:00 y una hora antes. Si la
    cita no tiene hora, prepara solo los dos primeros. Cada semana se repite en
    el mismo día y hora hasta que se cancela o se edita.
-4. Desde Casa puedes comprobar el estado de los permisos y programar un aviso
-   de prueba para un minuto después. Si falta algún permiso, la cita se guarda
+4. Desde Casa puedes comprobar el estado de los permisos. Si falta alguno, la cita se guarda
    pero Casa la indica como pendiente de activar.
 
 La interfaz de ideas y asistente queda fuera del flujo actual. Las citas se
@@ -53,6 +53,11 @@ firma y versión de lanzamiento. Cada runner firma el APK de prueba con una clav
 temporal distinta: instalar otro APK de prueba puede exigir desinstalar el
 anterior y borrar sus citas. Para la prueba usa citas ficticias.
 
+Por petición de Javier, en `output/android/` y en la carpeta de entrega de
+Dropbox se conserva solo la APK más reciente. Una vez verificada y copiada la
+nueva entrega, eliminar las APK anteriores de Leteo, sus ZIP y los temporales
+de extracción. No acumular compilaciones ni borrar otros archivos de Dropbox.
+
 ## Web de prueba y datos
 
 La web pública anterior está en <https://leteo-prueba.vercel.app/>. Hasta una
@@ -72,6 +77,8 @@ contenido previo sin ocultarlo. Los documentos históricos siguen en
 ```bash
 node tests/agenda-local29Oct.cjs
 node tests/calendar31Oct.cjs
+node tests/dictated-date4.cjs
+node tests/date-review-ui.cjs
 node tests/notification-planner.mjs
 ```
 

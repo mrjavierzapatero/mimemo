@@ -28,13 +28,24 @@
   const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const weekdays=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const nums={una:1,un:1,dos:2,tres:3,cuatro:4,cinco:5,seis:6,siete:7,ocho:8,nueve:9,diez:10,once:11,doce:12};
+  const numberWords={...nums,uno:1,primero:1,trece:13,catorce:14,quince:15,dieciseis:16,diecisiete:17,dieciocho:18,diecinueve:19,veinte:20,veintiuno:21,veintiun:21,veintiuna:21,veintidos:22,veintitres:23,veinticuatro:24,veinticinco:25,veintiseis:26,veintisiete:27,veintiocho:28,veintinueve:29,treinta:30};
+  for(const [tens,value] of [['treinta',30],['cuarenta',40],['cincuenta',50]]){
+    numberWords[tens]=value;
+    for(const unit of ['uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'])numberWords[tens+' y '+unit]=value+numberWords[unit];
+  }
+  const wordPattern=limit=>Object.keys(numberWords).filter(w=>numberWords[w]<=limit).sort((a,b)=>b.length-a.length).map(w=>w.replace(/[aeiou]/g,v=>'['+v+({a:'á',e:'é',i:'í',o:'ó',u:'ú'}[v])+']').replace(/ /g,'\\s+')).join('|');
+  const dateGap='(?:\\s+|\\s*[,.;]\\s*)';
+  // Shared with the calendar: match raw text so source spans remain literal.
+  const namedDatePattern='\\b(\\d{1,2}|'+wordPattern(31)+')'+dateGap+'(?:de'+dateGap+')?('+months.join('|')+'|setiembre)(?:'+dateGap+'(?:(?:de|del)'+dateGap+')?(\\d{4}))?\\b';
+  const spokenTimePattern='\\ba\\s+(?:las|la)\\s*(\\d{1,2}|'+wordPattern(12)+')(?:\\s+y\\s+(media|cuarto|\\d{1,2}|'+wordPattern(59)+'))?(?:\\s+(?:de|por)\\s+la\\s+(ma[ñn]ana|tarde|noche))?\\b';
+  const numberValue=value=>/^\d+$/.test(value)?Number(value):numberWords[clean(value)];
   function parse(text,now=new Date().toISOString()){
     const lo=clean(text).replace(/\b(a las?|de)(?=\d)/g,'$1 '),today=dateString(parts(now)),out={title:String(text).trim().slice(0,80),date:'',time:'',location:'',recurrence:'none',issues:[]};
     const full=lo.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/);
-    const named=lo.match(/\b(\d{1,2}) de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(?: (?:de )?(\d{4}))?\b/);
+    const namedDates=[...lo.matchAll(new RegExp(namedDatePattern,'g'))],named=namedDates[0];
     const weekdayHits=weekdays.filter(w=>new RegExp('\\b'+w+'\\b').test(lo));
     if(full)out.date=full[3]+'-'+pad(full[2])+'-'+pad(full[1]);
-    else if(named)out.date=(named[3]||today.slice(0,4))+'-'+pad(months.indexOf(named[2].replace('setiembre','septiembre'))+1)+'-'+pad(named[1]);
+    else if(named)out.date=(named[3]||today.slice(0,4))+'-'+pad(months.indexOf(named[2].replace('setiembre','septiembre'))+1)+'-'+pad(numberValue(named[1]));
     else if(/\bpasado manana\b/.test(lo))out.date=dayAdd(today,2);
     else if(/\bhoy\b/.test(lo))out.date=today;
     else if(/\bmanana\b/.test(lo)&&!(/de la manana/.test(lo)&&lo.replace(/de la manana/g,'').indexOf('manana')<0))out.date=dayAdd(today,1);
@@ -48,31 +59,31 @@
       (out.date&&/\b(?:cada semana|todas las semanas|semanal(?:mente)?)\b/.test(lo)))out.recurrence='weekly';
     if(weekdayHits.length>1)out.issues.push('Hay varios días: prepara cada rutina por separado.');
     if(/\b(cada mes|mensual|quincenal|cada dos)\b/.test(lo)){out.date='';out.issues.push('Esa repetición todavía no se interpreta: elige una fecha y repetición explícitas.');}
-    const clocks=[...lo.matchAll(/\b(?:a las?\s*)?(\d{1,2})[:h](\d{2})\b/g)];
+    const clocks=[...lo.matchAll(/\b(?:a las?\s*)?(\d{1,2})\s*[:h]\s*(\d{2})\b/g)];
     const correctedClock=clocks.length>1&&clocks.every((hit,i)=>{
       if(i===0)return true;
       const previous=clocks[i-1],between=lo.slice(previous.index+previous[0].length,hit.index);
       return /^[\s,;]*(?:(?:perdon|no|mejor|quiero decir)\s*[,;]?\s*)?$/.test(between);
     });
     const clock=correctedClock?clocks.at(-1):clocks[0];
-    const spoken=lo.match(/\ba (?:las|la) (\d{1,2}|una|un|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)(?: y (media|cuarto))?(?: de la (manana|tarde|noche))?\b/);
+    const spoken=lo.match(new RegExp(spokenTimePattern));
     if(clock){
       let h=Number(clock[1]);
       const after=lo.slice(clock.index+clock[0].length);
       const period=(after.match(/^\s*(?:de|por) la (manana|tarde|noche)\b/)||[])[1];
       if(period&&h>=1&&h<=12){if(period==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(period==='tarde'&&h<12)h+=12;}
       else if(period){out.issues.push('La hora y la franja del día no coinciden.');h=99;}
-      if(!period&&h>=1&&h<=11){
-        if(h<=7)h+=12;
+      if(!period&&h>=1&&h<=7&&!clock[1].startsWith('0')){
+        h+=12;
         out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(clock[2])+'. Confirma mañana o tarde antes de guardar.');
       }
       out.time=pad(h)+':'+pad(clock[2]);
     }
     else if(spoken){
-      let h=nums[spoken[1]]||Number(spoken[1]),m=spoken[2]==='media'?30:spoken[2]==='cuarto'?15:0;
+      let h=numberValue(spoken[1]),m=spoken[2]==='media'?30:spoken[2]==='cuarto'?15:spoken[2]?numberValue(spoken[2]):0;
       if(spoken[3]){if(h<1||h>12)out.issues.push('La hora y la franja del día no coinciden.');else if(spoken[3]==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(spoken[3]==='tarde'&&h<12)h+=12;}
-      if(!spoken[3]&&h<=12){
-        if(h>=1&&h<=7)h+=12;
+      if(!spoken[3]&&h>=1&&h<=7&&!spoken[1].startsWith('0')){
+        h+=12;
         out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(m)+'. Confirma mañana o tarde antes de guardar.');
       }
       out.time=pad(h)+':'+pad(m);
@@ -86,7 +97,7 @@
     if((full||named)&&weekdayHits.length===1&&validDate(out.date)&&new Date(out.date+'T12:00Z').getUTCDay()!==weekdays.indexOf(weekdayHits[0])){out.date='';out.issues.push('El día de la semana no coincide con la fecha. Revisa cuál es correcto.');}
     if(/\bhoy\b/.test(lo)&&/\bmanana\b/.test(lo.replace(/de la manana/g,''))){out.date='';out.issues.push('Aparecen hoy y mañana: confirma una fecha.');}
     if(/\b(cancelar|cancela|anular|anula|cambia|cambiar)\b/.test(lo)){out.date='';out.time='';out.issues.push('Para cambiar o cancelar, abre la memoria guardada y usa Editar. Este campo prepara una cita nueva.');}
-    if((lo.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{4}\b/g)||[]).length>1||(lo.match(/\b\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/g)||[]).length>1){out.date='';out.issues.push('Hay varias fechas: prepara cada cita por separado.');}
+    if((lo.match(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{4}\b/g)||[]).length>1||namedDates.length>1){out.date='';out.issues.push('Hay varias fechas: prepara cada cita por separado.');}
     if(clocks.length>1){
       if(correctedClock)out.issues.push('He tomado la última hora indicada, '+out.time+'. Revisa que sea la correcta.');
       else {out.time='';out.issues.push('Hay varias horas: elige una hora explícita.');}
@@ -128,5 +139,5 @@
     return {ok:true,agenda};
   }
   function duplicate(items,agenda,excludeId){return items.find(i=>i.id!==excludeId&&i.agenda&&i.agenda.status!=='cancelled'&&i.agenda.fingerprint===agenda.fingerprint);}
-  return {zone,parse,prepare,resolve,parts,dayAdd,duplicate};
+  return {zone,parse,prepare,resolve,parts,dayAdd,duplicate,namedDatePattern,spokenTimePattern};
 });

@@ -6,6 +6,7 @@
   'use strict';
   const fold=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const dayNames=['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const namedDatePrefix='(?:(?:el|este|pr[oó]ximo)\\s+)?(?:d[ií]a\\s+)?(?:(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\\b\\s*,?\\s*(?:d[ií]a\\s+)?)?';
   const iso=d=>d.toISOString().slice(0,10);
   const civil=d=>new Date(d+'T12:00:00Z');
   const today=now=>{const p=A.parts(now);return p.year+'-'+String(p.month).padStart(2,'0')+'-'+String(p.day).padStart(2,'0');};
@@ -16,7 +17,8 @@
   function zoom(mode,ratio){return ratio>1.25&&mode==='month'?'week':ratio<0.8&&mode==='week'?'month':mode;}
   function sourceParts(text){
     // Boundaries are explicit temporal phrases, never number-only ages or times.
-    const pattern=/\b(?:(?:el d[ií]a de )?(?:pasado ma[ñn]ana|hoy|ma[ñn]ana)|esta (?:tarde|noche|ma[ñn]ana)|(?:(?:el|este|pr[oó]ximo)\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?|\d{1,2}[\/-]\d{1,2}[\/-]\d{4}|\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de \d{4})?)\b/gi;
+    const namedAnchor=namedDatePrefix+A.namedDatePattern;
+    const pattern=new RegExp('\\b(?:'+namedAnchor+'|(?:el d[ií]a de )?(?:pasado ma[ñn]ana|hoy|ma[ñn]ana)|esta (?:tarde|noche|ma[ñn]ana)|(?:(?:el|este|pr[oó]ximo)\\s+)?(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\\s+\\d{1,2})?|\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{4})\\b','gi');
     const anchors=[];
     for(const m of text.matchAll(pattern)){
       const before=fold(text.slice(Math.max(0,m.index-35),m.index));
@@ -51,14 +53,15 @@
     if(birthday){const b=raw.match(/cumplea[nñ]os(?:\s+de)?\s+(.+?)(?=\s+\d{1,3}\s+a[nñ]os|\s+vale\b|\s+que lo\b|[.;\n]|$)/i);title=b?'Cumpleaños de '+b[1].trim():'Cumpleaños';}
     else {
       title=title.replace(/^(?:\s|[,.;]|luego\b|y\b|después\b|en el día\b)+/gi,'').trim();
-      title=title.replace(/^(?:el\s+)?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)\s+)?\d{1,2} de (?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?: de \d{4})?\s*/i,'');
+      title=title.replace(new RegExp('^'+namedDatePrefix+A.namedDatePattern+'\\s*','i'),'');
       title=title.replace(/^(?:el día de )?(?:hoy|mañana|pasado mañana|esta tarde|esta noche|(?:el |este |próximo )?(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)(?:\s+\d{1,2})?|\d{1,2}[\/-]\d{1,2}[\/-]\d{4})\s*/i,'');
-      title=title.replace(/^(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'').replace(/^a las?\s+\d{1,2}(?::\d{2})?(?:\s+(?:de|por) la (?:mañana|tarde|noche))?\s*/i,'').replace(/\s+(?:vale por ahora|por ahora no quiero|no quiero guardar nada más)[\s\S]*$/i,'').trim();
+      title=title.replace(/^(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'').replace(/\s+(?:vale por ahora|por ahora no quiero|no quiero guardar nada más)[\s\S]*$/i,'').trim();
       title=title.replace(/^(?:por favor\s+)?(?:ponme|ap[uú]ntame|crea|guarda|recu[eé]rdame)\s+(?:(?:una?|la)\s+)?(?:alerta|aviso|recordatorio|cita)\b/i,'');
       title=title.replace(/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi,'');
       title=title.replace(/\b(?:cada semana|todas las semanas|semanal(?:mente)?|cada d[ií]a|todos los d[ií]as|a diario)\b/gi,'');
       title=title.replace(/\b(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?\b/gi,'');
-      title=title.replace(/\ba las?\s*\d{1,2}(?::\d{2})?(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
+      title=title.replace(/\ba\s+las?\s*\d{1,2}\s*[:h]\s*\d{2}(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
+      title=title.replace(new RegExp(A.spokenTimePattern,'gi'),'');
       title=title.replace(/[,;]?\s*(?:(?:y\s+)?entonces\s+)?(?:av[ií]same|me avisas|que me avises|tienes que avisarme|me tienes que avisar)\b[\s\S]*$/i,'');
       title=title.replace(/^[\s,.;]*(?:que\s+)?(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'');
       title=title.replace(/^[\s,.;]+|[\s,.;]+$/g,'').replace(/\s+/g,' ');
