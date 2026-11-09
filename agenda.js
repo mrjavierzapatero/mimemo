@@ -37,8 +37,20 @@
   const dateGap='(?:\\s+|\\s*[,.;]\\s*)';
   // Shared with the calendar: match raw text so source spans remain literal.
   const namedDatePattern='\\b(\\d{1,2}|'+wordPattern(31)+')'+dateGap+'(?:de'+dateGap+')?('+months.join('|')+'|setiembre)(?:'+dateGap+'(?:(?:de|del)'+dateGap+')?(\\d{4}))?\\b';
-  const spokenTimePattern='\\ba\\s+(?:las|la)\\s*(\\d{1,2}|'+wordPattern(12)+')(?:\\s+y\\s+(media|cuarto|\\d{1,2}|'+wordPattern(59)+'))?(?:\\s+(?:de|por)\\s+la\\s+(ma[ñn]ana|tarde|noche))?\\b';
+  const spokenTimePattern='\\b(?:a\\s+)?(?:las|la)\\s*(\\d{1,2}|'+wordPattern(23)+')(?:\\s+y\\s+(media|cuarto|\\d{1,2}|'+wordPattern(59)+'))?(?:\\s+(?:de|por)\\s+la\\s+(ma[ñn]ana|tarde|noche))?\\b';
+  const dateReference='(?:pasado manana|manana|hoy|'+weekdays.join('|')+'|'+namedDatePattern+'|\\d{1,2}[/-]\\d{1,2}[/-]\\d{4})';
+  const dateAlternatives=new RegExp('\\b'+dateReference+'\\b\\s*,?\\s+o\\s+(?:(?:el|este|proximo)\\s+)?'+dateReference+'\\b');
   const numberValue=value=>/^\d+$/.test(value)?Number(value):numberWords[clean(value)];
+  function clockHour(h,period,issues){
+    if(!period)return h;
+    if(h>=1&&h<=12){
+      if(period==='noche')return h===12?0:h>=8?h+12:h;
+      return period==='tarde'&&h<12?h+12:h;
+    }
+    if(period==='tarde'&&h>=13&&h<=20||period==='noche'&&(h>=20&&h<=23||h===0))return h;
+    issues.push('La hora y la franja del día no coinciden.');
+    return 99;
+  }
   function parse(text,now=new Date().toISOString()){
     const lo=clean(text).replace(/\b(a las?|de)(?=\d)/g,'$1 '),today=dateString(parts(now)),out={title:String(text).trim().slice(0,80),date:'',time:'',location:'',recurrence:'none',issues:[]};
     const full=lo.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})\b/);
@@ -56,7 +68,7 @@
     }
     if(/\b(cada dia|todos los dias|a diario)\b/.test(lo)){out.recurrence='daily';if(!out.date)out.date=today;}
     else if((weekdayHits.length===1&&/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/.test(lo))||
-      (out.date&&/\b(?:cada semana|todas las semanas|semanal(?:mente)?)\b/.test(lo)))out.recurrence='weekly';
+      /\b(?:cada semana|todas las semanas|semanal(?:mente)?)\b/.test(lo)||/\b(?:todos los|todas las)[\s.,…]*$/.test(lo))out.recurrence='weekly';
     if(weekdayHits.length>1)out.issues.push('Hay varios días: prepara cada rutina por separado.');
     if(/\b(cada mes|mensual|quincenal|cada dos)\b/.test(lo)){out.date='';out.issues.push('Esa repetición todavía no se interpreta: elige una fecha y repetición explícitas.');}
     const clocks=[...lo.matchAll(/\b(?:a las?\s*)?(\d{1,2})\s*[:h]\s*(\d{2})\b/g)];
@@ -71,8 +83,7 @@
       let h=Number(clock[1]);
       const after=lo.slice(clock.index+clock[0].length);
       const period=(after.match(/^\s*(?:de|por) la (manana|tarde|noche)\b/)||[])[1];
-      if(period&&h>=1&&h<=12){if(period==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(period==='tarde'&&h<12)h+=12;}
-      else if(period){out.issues.push('La hora y la franja del día no coinciden.');h=99;}
+      h=clockHour(h,period,out.issues);
       if(!period&&h>=1&&h<=7&&!clock[1].startsWith('0')){
         h+=12;
         out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(clock[2])+'. Confirma mañana o tarde antes de guardar.');
@@ -81,7 +92,7 @@
     }
     else if(spoken){
       let h=numberValue(spoken[1]),m=spoken[2]==='media'?30:spoken[2]==='cuarto'?15:spoken[2]?numberValue(spoken[2]):0;
-      if(spoken[3]){if(h<1||h>12)out.issues.push('La hora y la franja del día no coinciden.');else if(spoken[3]==='noche'){if(h===12)h=0;else if(h>=8)h+=12;}else if(spoken[3]==='tarde'&&h<12)h+=12;}
+      h=clockHour(h,spoken[3],out.issues);
       if(!spoken[3]&&h>=1&&h<=7&&!spoken[1].startsWith('0')){
         h+=12;
         out.issues.push('He interpretado la hora como '+pad(h)+':'+pad(m)+'. Confirma mañana o tarde antes de guardar.');
@@ -90,7 +101,7 @@
     }
     const loc=String(text).match(/\ben\s+(.+?)(?=\s+(?:mañana\b|hoy\b|pasado mañana\b|a las?(?=\s|\d)|el (?:lunes|martes|miércoles|jueves|viernes|sábado|domingo)\b|cada\b)|[.;\n]|$)/i);
     if(loc)out.location=loc[1].trim().slice(0,160);
-    if(/\bo\b/.test(lo)&&/\b(hoy|manana|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/.test(lo)){
+    if(dateAlternatives.test(lo.replace(/\b(?:de|por) la manana\b/g,''))){
       out.date='';out.issues.push('Hay alternativas de fecha: elige una fecha explícita.');
     }
     if(weekdayHits.length>1)out.date='';

@@ -51,11 +51,23 @@
 .cal-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
 .batch-overlay{justify-content:center}.batch-sheet{max-width:560px;background:#fff}.batch-sheet h2{font-size:25px;line-height:1.2;margin:0 0 12px}
 .batch-card{min-width:0;border:0;border-top:1px solid #bbb;border-radius:0;padding:6px 0 16px;background:#fff;margin:20px 0}.batch-card legend{font-size:12px;padding:0 8px 0 0;color:#666}
-.batch-card>label,.batch-fields label,.batch-options label{display:block;font-size:12px;font-weight:500;color:#555;margin:14px 0 7px}
+.batch-card>label,.batch-fields label,.batch-options label,.batch-weekday label{display:block;font-size:12px;font-weight:500;color:#555;margin:14px 0 7px}
 .batch-card input:not([type=checkbox]),.batch-card textarea,.batch-card select{width:100%;min-width:0;padding:10px 11px;min-height:46px;border:1px solid #bbb;border-radius:3px;font:inherit;font-size:16px;background:#fff;color:#111}
 .batch-card textarea{line-height:1.5;min-height:108px;resize:vertical}.batch-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 .batch-card .batch-all{display:flex;align-items:center;gap:9px;min-height:36px;font-weight:400;margin-top:8px;font-size:13px}.batch-card input[type=checkbox]{width:18px;height:18px;accent-color:#111}
-.batch-options{margin-top:12px}.batch-issue{font-size:13px;line-height:1.5;margin-top:12px;color:#765000}
+.batch-options{margin-top:12px}.batch-issue{font-size:13px;line-height:1.5;margin-top:12px;color:#444}.batch-issue.needs-review{color:#765000}
+.batch-card .batch-time-trigger{width:100%;min-height:46px;padding:10px 11px;border:1px solid #bbb;border-radius:3px;background:#fff;color:#111;text-align:left;font-size:16px;font-variant-numeric:tabular-nums}
+.time-dialog{box-sizing:border-box;width:min(100% - 24px,380px);max-height:calc(100dvh - 24px);margin:auto;padding:22px 24px 24px;border:0;border-radius:16px;background:#fff;color:#111}
+.time-dialog::backdrop{background:rgba(0,0,0,.36)}.time-dialog h2{font-size:23px;line-height:1.2;margin:0 0 16px}
+.time-columns{display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center;margin-bottom:16px}
+.time-column{position:relative;min-width:0}.time-column>span{display:block;font-size:13px;color:#555;margin-bottom:6px}
+.time-wheel{height:220px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;scroll-snap-type:y mandatory;touch-action:pan-y;border-radius:6px}
+.time-wheel::before,.time-wheel::after{content:'';display:block;height:88px}.time-wheel::-webkit-scrollbar{display:none}
+.time-wheel [data-wheel-value]{height:44px;display:grid;place-items:center;scroll-snap-align:center;cursor:pointer;color:#686868;font-size:19px;font-variant-numeric:tabular-nums;user-select:none}
+.time-wheel .is-selected{color:#111;background:#fff5c2;font-size:24px;font-weight:650}
+.time-dialog .agenda-actions{position:static;padding:0;gap:12px;background:#fff}.time-dialog .agenda-actions button{min-height:46px}
+.time-dialog :focus-visible{outline:2px solid #956000;outline-offset:2px}
+@media(max-width:480px){.time-dialog{margin:auto auto max(12px,env(safe-area-inset-bottom));}}
 .batch-original{margin-top:18px}.batch-original summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px;color:#555}.batch-original .agenda-transcript{user-select:text;-webkit-user-select:text;background:#fff;border-radius:3px}
 .batch-reminders{border-top:1px solid #bbb;border-bottom:1px solid #bbb;padding:17px 0;margin:14px 0 18px;font-size:13px;line-height:1.45}.batch-reminders>strong{font-size:14px;font-weight:500}.batch-reminders ul{padding-left:17px;margin:10px 0}.batch-reminders li{padding:4px 0}.batch-reminders li span{display:block;color:#666;font-size:12px;margin-top:2px}.batch-reminders p{color:#666;margin-top:12px}
 .batch-sheet .agenda-actions{position:static;background:#fff;padding:12px 0 0;gap:12px}.batch-sheet .agenda-actions button{font-size:14px;min-height:48px}.batch-sheet button:disabled{opacity:.4;cursor:not-allowed}#batchStatus{font-size:13px;line-height:1.5;color:#666;margin-top:12px}

@@ -32,6 +32,8 @@ jobs:
           node tests/agenda-local29Oct.cjs
           node tests/calendar31Oct.cjs
           node tests/notification-planner.mjs
+          node tests/native-speech-bridge.mjs
+          node tests/native-speech-review.cjs
       - name: Bundle the local web view and brand assets
         working-directory: android-app
         run: |

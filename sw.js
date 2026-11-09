@@ -1,13 +1,13 @@
-const CACHE = 'leteo-v14-dictated-dates-20261109';
+const CACHE = 'leteo-v15-weekly-review-20261109';
 const ASSETS = [
   './',
   './index.html',
-  './agenda.js?v=20261109-v5',
-  './waveform.js?v=20261109-v5',
-  './calendar.js?v=20261109-v5',
-  './calendar-ui.js?v=20261109-v5',
-  './calendar.css?v=20261109-v5',
-  './branding.css?v=20261109-v5',
+  './agenda.js?v=20261109-v6',
+  './waveform.js?v=20261109-v6',
+  './calendar.js?v=20261109-v6',
+  './calendar-ui.js?v=20261109-v6',
+  './calendar.css?v=20261109-v6',
+  './branding.css?v=20261109-v6',
   './manifest.json',
   './assets/icons/icon-192.png?v=leteo-20261108',
   './assets/icons/icon-512.png?v=leteo-20261108',

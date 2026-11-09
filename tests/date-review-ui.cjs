@@ -24,10 +24,11 @@ function app(text) {
   const nodes = new Map();
   const writes = [];
   const notices = [];
-  for (const id of ['bTitle0', 'bDate0', 'bTime0', 'bPlace0', 'bRepeat0', 'bAll0', 'bIssue0', 'batchSave', 'batchReminders', 'batchStatus', 'ideaInput']) {
+  for (const id of ['bTitle0', 'bDate0', 'bTime0', 'bTimeButton0', 'bWeek0', 'bWeekWrap0', 'bPlace0', 'bRepeat0', 'bAll0', 'bIssue0', 'batchSave', 'batchReminders', 'batchStatus', 'ideaInput']) {
       const weekly = { textContent: '' };
       nodes.set(id, {
         value: '', textContent: '', innerHTML: '', checked: false, disabled: false,
+        dataset: {}, classList: { toggle() {} }, setAttribute() {},
         querySelector(selector) {
           assert.equal(selector, 'option[value="weekly"]');
           return weekly;

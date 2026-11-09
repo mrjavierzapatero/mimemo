@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 public class LeteoDictationPlugin extends Plugin {
     private static final int SAMPLE_RATE = 16000;
     private static final int CHUNK_SAMPLES = 320;
+    private static final int END_SILENCE_MS = 400;
     private static final long START_TIMEOUT_MS = 12000;
     private static final long FINAL_TIMEOUT_MS = 7000;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -63,6 +64,7 @@ public class LeteoDictationPlugin extends Plugin {
         volatile boolean captureRequested = true;
         volatile boolean captureFinished;
         volatile boolean ended;
+        volatile boolean finalizeAudio;
         boolean stopRequested;
         boolean discard;
         boolean ready;
@@ -210,6 +212,11 @@ public class LeteoDictationPlugin extends Plugin {
                 byte[] chunk = session.chunks.poll(100, TimeUnit.MILLISECONDS);
                 if (chunk != null) output.write(chunk);
             }
+            // Give the recognizer an end-of-utterance gap before EOF, without
+            // keeping the microphone open after Stop or padding cancelled audio.
+            if (session.finalizeAudio && !session.ended) {
+                output.write(new byte[SAMPLE_RATE * 2 * END_SILENCE_MS / 1000]);
+            }
             // Closing the writer sends EOF; the recognizer can finalize the last segment.
         } catch (Exception error) {
             if (!session.ended) main.post(() -> fail(session, "AUDIO_STREAM_FAILED", "El servicio de voz cerró el audio antes de tiempo. El texto reconocido se conserva."));
@@ -287,6 +294,7 @@ public class LeteoDictationPlugin extends Plugin {
             }
             if (session.stopRequested) return;
             session.stopRequested = true;
+            session.finalizeAudio = session.reportedStarted;
             if (session.startTimeout != null) main.removeCallbacks(session.startTimeout);
             requestCaptureStop(session);
             if (!session.listeningDispatched) { finish(session, "user-stop", true); return; }

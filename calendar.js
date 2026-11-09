@@ -11,6 +11,15 @@
   const civil=d=>new Date(d+'T12:00:00Z');
   const today=now=>{const p=A.parts(now);return p.year+'-'+String(p.month).padStart(2,'0')+'-'+String(p.day).padStart(2,'0');};
   const valid=d=>/^\d{4}-\d{2}-\d{2}$/.test(d)&&Number(d.slice(0,4))>=1900&&Number(d.slice(0,4))<=2200&&Number.isFinite(+civil(d))&&iso(civil(d))===d;
+  function nextWeekday(day,time,now=new Date().toISOString()){
+    if(!Number.isInteger(day)||day<0||day>6)return '';
+    const base=today(now),delta=(day-civil(base).getUTCDay()+7)%7;
+    if(delta===0&&time){
+      const start=A.resolve(base,time).instant;
+      if(start&&Date.parse(start)<=Date.parse(now))return A.dayAdd(base,7);
+    }
+    return A.dayAdd(base,delta);
+  }
   function week(date){const offset=(civil(date).getUTCDay()+6)%7;return Array.from({length:7},(_,i)=>A.dayAdd(date,i-offset));}
   function month(date){return Array.from({length:42},(_,i)=>A.dayAdd(week(date.slice(0,7)+'-01')[0],i));}
   function moveMonth(date,delta){const d=civil(date.slice(0,7)+'-01');d.setUTCMonth(d.getUTCMonth()+delta);return iso(d);}
@@ -60,8 +69,9 @@
       title=title.replace(/\b(?:cada|todos los|todas las)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\b/gi,'');
       title=title.replace(/\b(?:cada semana|todas las semanas|semanal(?:mente)?|cada d[ií]a|todos los d[ií]as|a diario)\b/gi,'');
       title=title.replace(/\b(?:el|este|pr[oó]ximo)\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+\d{1,2})?\b/gi,'');
-      title=title.replace(/\ba\s+las?\s*\d{1,2}\s*[:h]\s*\d{2}(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
+      title=title.replace(/\b(?:a\s+)?las?\s*\d{1,2}\s*[:h]\s*\d{2}(?:\s+(?:de|por) la (?:ma[ñn]ana|tarde|noche))?\b/gi,'');
       title=title.replace(new RegExp(A.spokenTimePattern,'gi'),'');
+      title=title.replace(/\b(?:todos los|todas las)[\s.,…]*$/i,'').replace(/\bo sea[\s,.;…]*$/i,'');
       title=title.replace(/[,;]?\s*(?:(?:y\s+)?entonces\s+)?(?:av[ií]same|me avisas|que me avises|tienes que avisarme|me tienes que avisar)\b[\s\S]*$/i,'');
       title=title.replace(/^[\s,.;]*(?:que\s+)?(?:tengo|tenemos|hay|es)\s+(?:que\s+)?/i,'');
       title=title.replace(/^[\s,.;]+|[\s,.;]+$/g,'').replace(/\s+/g,' ');
@@ -127,5 +137,5 @@
     }
     return out.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
   }
-  return {parseMany,prepare,events,month,week,moveMonth,zoom,today,valid};
+  return {parseMany,prepare,events,month,week,moveMonth,zoom,today,valid,nextWeekday};
 });

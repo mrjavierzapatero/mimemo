@@ -4,11 +4,54 @@
   const C=window.LeteoCalendar,A=window.LeteoAgenda;
   const $=id=>document.getElementById(id);
   const html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const weekdayOptions=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((day,i)=>'<option value="'+((i+1)%7)+'">'+day+'</option>').join('');
   let batch=null,returnFocus=null,calendarDate=C.today(new Date().toISOString()),mode='month',pinch=null;
   const homeIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5M5.5 9v12h13V9M9.5 21v-7h5v7M3 21h18"/></svg>';
   $('app').insertAdjacentHTML('beforeend','<section class="view calendar-view" id="vCalendar" aria-label="Calendario personal"><header class="cal-header"><div id="calHeadingGroup"><h1 id="calHeading"></h1><p id="calSubtitle"></p></div><button type="button" class="cal-today" id="calToday">Hoy</button></header><div class="cal-modes" role="group" aria-label="Vista del calendario"><button type="button" data-mode="month">Mes</button><button type="button" data-mode="week">Semana</button><button type="button" data-mode="day">Día</button></div><p class="cal-help" id="calHelp" hidden></p><div id="calBody" class="cal-body"></div><nav class="cal-arrows" aria-label="Cambiar periodo"><button type="button" id="calPrevious" aria-label="Mes anterior">←</button><span id="calPeriod" aria-live="polite"></span><button type="button" id="calNext" aria-label="Mes siguiente">→</button></nav><nav class="cal-footer" aria-label="Navegación principal"><button type="button" class="home-button" id="calCapture" aria-label="Casa · volver a No olvidar">'+homeIcon+'<span>Casa</span></button></nav></section>');
   document.body.insertAdjacentHTML('beforeend','<div class="ov batch-overlay" id="batchOv" role="dialog" aria-modal="true" aria-labelledby="batchHeading"><form class="sh batch-sheet" id="batchForm" autocomplete="off"><div class="hdl"></div><h2 id="batchHeading">Revisa antes de guardar</h2><div id="batchCards"></div><details class="batch-original"><summary>Ver el dictado completo</summary><div id="batchTranscript" class="agenda-transcript"></div></details><div class="batch-reminders" id="batchReminders"><strong>Avisos previstos</strong><ul><li>Día anterior · 20:00</li><li>Ese día · 09:00</li><li>Una hora antes</li></ul><p>Avisos del teléfono pendientes de activar.</p></div><p id="batchStatus" role="status" aria-live="polite"></p><div class="agenda-actions"><button type="button" class="btn bg2" id="batchBack">Volver al dictado</button><button type="submit" class="btn bb" id="batchSave">Guardar cita</button></div></form></div>');
   const cancelButton=document.createElement('button');cancelButton.id='batchCancel';cancelButton.type='button';cancelButton.className='btn br';cancelButton.hidden=true;cancelButton.textContent='Cancelar cita';$('batchForm').append(cancelButton);
+  const wheelMarkup=(name,label,count)=>'<div class="time-column"><span id="'+name+'Label">'+label+'</span><div id="'+name+'" class="time-wheel" role="spinbutton" tabindex="0" aria-labelledby="'+name+'Label" aria-valuemin="0" aria-valuemax="'+(count-1)+'">'+Array.from({length:count},(_,i)=>'<div aria-hidden="true" data-wheel-value="'+i+'">'+String(i).padStart(2,'0')+'</div>').join('')+'</div></div>';
+  document.body.insertAdjacentHTML('beforeend','<dialog class="time-dialog" id="timeDialog" aria-labelledby="timeHeading"><h2 id="timeHeading">Elige la hora</h2><div class="time-columns">'+wheelMarkup('timeHours','Hora',24)+wheelMarkup('timeMinutes','Minutos',60)+'</div><div class="agenda-actions"><button type="button" class="btn bg2" id="timeCancel">Cancelar</button><button type="button" class="btn bb" id="timeApply">Establecer</button></div></dialog>');
+  const timeDialog=$('timeDialog'),wheels=[$('timeHours'),$('timeMinutes')];
+  let timeIndex=null;
+  const wheelStep=wheel=>wheel.firstElementChild.offsetHeight;
+  const wheelValue=wheel=>Math.max(0,Math.min(wheel.childElementCount-1,Math.round(wheel.scrollTop/(wheelStep(wheel)||1))));
+  function showWheelValue(wheel){
+    const value=wheelValue(wheel);
+    wheel.querySelector('.is-selected')?.classList.remove('is-selected');
+    wheel.children[value].classList.add('is-selected');
+    wheel.setAttribute('aria-valuenow',value);
+    wheel.setAttribute('aria-valuetext',String(value).padStart(2,'0'));
+  }
+  function setWheel(wheel,value){wheel.scrollTop=value*wheelStep(wheel);showWheelValue(wheel);}
+  for(const wheel of wheels){
+    wheel.addEventListener('scroll',()=>{if(timeDialog.open)showWheelValue(wheel);},{passive:true});
+    wheel.addEventListener('click',event=>{if(event.target.dataset.wheelValue!==undefined)setWheel(wheel,Number(event.target.dataset.wheelValue));});
+    wheel.addEventListener('keydown',event=>{
+      const value=wheelValue(wheel),last=wheel.childElementCount-1;
+      const keys={ArrowUp:value-1,ArrowDown:value+1,PageUp:value-5,PageDown:value+5,Home:0,End:last};
+      if(!Object.hasOwn(keys,event.key))return;
+      event.preventDefault();setWheel(wheel,Math.max(0,Math.min(last,keys[event.key])));
+    });
+  }
+  function openTime(i){
+    timeIndex=i;
+    const now=A.parts(new Date()),fallback=[now.hour,0];
+    const value=$('bTime'+i).value;
+    timeDialog.showModal();
+    (value?value.split(':').map(Number):fallback).forEach((n,j)=>setWheel(wheels[j],n));
+  }
+  $('timeCancel').addEventListener('click',()=>timeDialog.close());
+  $('timeApply').addEventListener('click',()=>{
+    if(timeIndex===null)return;
+    const i=timeIndex,input=$('bTime'+i);
+    input.value=wheels.map(wheel=>String(wheelValue(wheel)).padStart(2,'0')).join(':');
+    input.dataset.confirmed='true';
+    $('bAll'+i).checked=false;
+    const date=$('bDate'+i);
+    if(date.dataset.weekday&&$('bRepeat'+i).value==='weekly')date.value=C.nextWeekday(Number(date.dataset.weekday),input.value);
+    timeDialog.close();refreshBatch();
+  });
   $('calHelp').insertAdjacentHTML('afterend','<div class="cal-alert-controls" id="calAlertControls" hidden><p id="calAlertStatus" role="status"></p><button type="button" id="calActivateAlerts">Activar avisos</button></div>');
   const nativeAlerts=()=>window.LeteoNativeAlerts?.native?window.LeteoNativeAlerts:null;
   function updateAlertControls(){
@@ -51,14 +94,20 @@
     let selected=0,invalid=0;
     batch.entries.forEach((entry,i)=>{
       const f=fields(i),result=C.prepare(f),weekday=weekdayName(f.date),missingDate=!C.valid(f.date);
-      $('bTime'+i).disabled=f.allDay;
+      const timeButton=$('bTimeButton'+i),timeConfirmed=$('bTime'+i).dataset.confirmed==='true';
+      timeButton.textContent=f.allDay||!f.time?'Elegir hora':f.time;
+      timeButton.setAttribute('aria-label','Hora: '+(f.allDay||!f.time?'elegir hora':f.time));
+      $('bWeekWrap'+i).hidden=f.recurrence!=='weekly';
+      $('bWeek'+i).value=missingDate?'':String(new Date(f.date+'T12:00:00Z').getUTCDay());
       $('bRepeat'+i).querySelector('option[value="weekly"]').textContent=weekday?'Cada '+weekday:'Cada semana';
-      const unresolved=(entry.issues||[]).filter(issue=>!/^Falta una fecha/i.test(issue)&&((!f.allDay&&!f.time&&/ambigua|mañana o tarde|mañana\/tarde|confirma.*hora|mañana.*tarde/i.test(issue))||(missingDate&&/coincide|fecha/i.test(issue))||(!f.allDay&&f.time===entry.time&&/he interpretado la hora|he tomado la última hora/i.test(issue))));
+      const unresolved=(entry.issues||[]).filter(issue=>!/^Falta una fecha/i.test(issue)&&((missingDate&&/coincide.*fecha|fecha/i.test(issue))||(!timeConfirmed&&!f.allDay&&f.time===entry.time&&/he interpretado la hora|he tomado la última hora/i.test(issue))));
       const errors=result.ok?[]:result.errors.filter(error=>!missingDate||!/^Falta una fecha/i.test(error));
-      const dateHelp=missingDate?'Toca el campo Fecha para completar la fecha; no hace falta repetir el dictado.':'';
+      const dateHelp=missingDate?(f.recurrence==='weekly'?'Elige el día de la semana o completa la fecha para guardar.':'Toca el campo Fecha para completar la fecha; no hace falta repetir el dictado.'):'';
       const summary=result.ok?reviewDate(f.date)+' · '+(f.allDay?'Sin hora indicada':reviewTime(f.time))+'.':'';
       const weekly=f.recurrence==='weekly'&&weekday?'Se repetirá cada '+weekday+' desde el '+reviewDate(f.date)+'.':'';
-      $('bIssue'+i).textContent=[...unresolved,...errors,dateHelp,summary,weekly].filter(Boolean).join(' ');
+      const status=$('bIssue'+i);
+      status.classList.toggle('needs-review',!result.ok||unresolved.length>0);
+      status.textContent=[...unresolved,...errors,dateHelp,summary,weekly].filter(Boolean).join(' ');
       selected++;if(!result.ok)invalid++;
     });
     $('batchSave').disabled=!selected||!!invalid;
@@ -72,7 +121,7 @@
     returnFocus=document.activeElement;batch=parsed;
     $('batchCancel').hidden=!parsed.editId;
     $('batchTranscript').textContent=text;
-    $('batchCards').innerHTML=parsed.entries.map((entry,i)=>'<fieldset class="batch-card" id="bCard'+i+'"><legend>Cita</legend><label for="bTitle'+i+'">Qué tienes previsto</label><textarea rows="3" maxlength="80" id="bTitle'+i+'" required>'+html(entry.title)+'</textarea><div class="batch-fields"><div><label for="bDate'+i+'">Fecha</label><input type="date" id="bDate'+i+'" value="'+html(entry.date)+'" autocomplete="off" required></div><div><label for="bTime'+i+'">Hora · 24 h</label><input type="time" id="bTime'+i+'" value="'+html(entry.time)+'" autocomplete="off"></div></div><label class="batch-all"><input type="checkbox" id="bAll'+i+'" '+(entry.allDay?'checked':'')+'> Sin hora indicada</label><label for="bPlace'+i+'">Lugar · opcional</label><input id="bPlace'+i+'" maxlength="160" value="'+html(entry.location)+'" placeholder="Sin lugar indicado"><div class="batch-options"><label for="bRepeat'+i+'">Repetición</label><select id="bRepeat'+i+'">'+[['none','Una sola vez'],['daily','Cada día'],['weekly','Cada semana'],['yearly','Cada año']].map(([value,label])=>'<option value="'+value+'" '+(entry.recurrence===value?'selected':'')+'>'+label+'</option>').join('')+'</select></div><p id="bIssue'+i+'" class="batch-issue"></p></fieldset>').join('');
+    $('batchCards').innerHTML=parsed.entries.map((entry,i)=>'<fieldset class="batch-card" id="bCard'+i+'"><legend>Cita</legend><label for="bTitle'+i+'">Qué tienes previsto</label><textarea rows="3" maxlength="80" id="bTitle'+i+'" required>'+html(entry.title)+'</textarea><div class="batch-fields"><div><label for="bDate'+i+'">Fecha</label><input type="date" id="bDate'+i+'" value="'+html(entry.date)+'" autocomplete="off" required></div><div><label for="bTimeButton'+i+'">Hora · 24 h</label><input type="hidden" id="bTime'+i+'" value="'+html(/^([01]\d|2[0-3]):[0-5]\d$/.test(entry.time)?entry.time:'')+'"><button type="button" class="batch-time-trigger" id="bTimeButton'+i+'" data-time-index="'+i+'" aria-haspopup="dialog"></button></div></div><label class="batch-all"><input type="checkbox" id="bAll'+i+'" '+(entry.allDay?'checked':'')+'> Sin hora indicada</label><label for="bPlace'+i+'">Lugar · opcional</label><input id="bPlace'+i+'" maxlength="160" value="'+html(entry.location)+'" placeholder="Sin lugar indicado"><div class="batch-options"><label for="bRepeat'+i+'">Repetición</label><select id="bRepeat'+i+'">'+[['none','Una sola vez'],['daily','Cada día'],['weekly','Cada semana'],['yearly','Cada año']].map(([value,label])=>'<option value="'+value+'" '+(entry.recurrence===value?'selected':'')+'>'+label+'</option>').join('')+'</select></div><div class="batch-weekday" id="bWeekWrap'+i+'" hidden><label for="bWeek'+i+'">Día de la semana</label><select id="bWeek'+i+'" data-week-index="'+i+'"><option value="">Elige un día</option>'+weekdayOptions+'</select></div><p id="bIssue'+i+'" class="batch-issue"></p></fieldset>').join('');
     refreshBatch();openOv('batchOv');$('batchHeading').setAttribute('tabindex','-1');$('batchHeading').focus({preventScroll:true});$('batchForm').scrollTop=0;
   }
   function closeBatch(){batch=null;closeOv('batchOv');if(returnFocus?.focus)returnFocus.focus();}
@@ -112,7 +161,21 @@
     }catch(error){$('batchStatus').textContent=error.message;}
   }
   $('batchForm').addEventListener('submit',saveBatch);
-  $('batchCards').addEventListener('input',refreshBatch);$('batchCards').addEventListener('change',refreshBatch);
+  $('batchCards').addEventListener('click',event=>{
+    const button=event.target.closest('[data-time-index]');if(button)openTime(Number(button.dataset.timeIndex));
+  });
+  $('batchCards').addEventListener('input',event=>{
+    if(event.target.id.startsWith('bDate'))delete event.target.dataset.weekday;
+    if(event.target.dataset.weekIndex===undefined)refreshBatch();
+  });
+  $('batchCards').addEventListener('change',event=>{
+    const control=event.target;
+    if(control.dataset.weekIndex!==undefined&&control.value!==''){
+      const i=Number(control.dataset.weekIndex),date=$('bDate'+i),f=fields(i);
+      date.dataset.weekday=control.value;date.value=C.nextWeekday(Number(control.value),f.allDay?'':f.time);
+    }
+    refreshBatch();
+  });
   $('batchBack').addEventListener('click',closeBatch);
   $('batchCancel').addEventListener('click',async()=>{
     if(!batch?.editId)return;
@@ -132,11 +195,11 @@
   // A dictation prepares one editable appointment. Multiple events are deliberately
   // not guessed or saved in a batch: capturing the next one is clearer and safer.
   window.guardarIdea=async function(){
-    if(window.LeteoNativeSpeech?.native&&(keepListening||nativeStopPromise))await stopSpeechRecognition(false);
+    if(window.LeteoNativeSpeech?.native)await stopSpeechRecognition(false);
     const text=$('ideaInput').value.trim();
     if(!text){focusInput();return;}
     const parsed=C.parseMany(text);
-    stopSpeechRecognition(true);
+    if(!window.LeteoNativeSpeech?.native)stopSpeechRecognition(true);
     const entry=parsed.entries[0];
     if(!entry)return;
     openBatch(text,{text,entries:[entry],editId:null});

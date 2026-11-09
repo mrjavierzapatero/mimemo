@@ -5,13 +5,13 @@ assert(match);
 (async()=>{
   let finish,opened=null;
   const input={value:'Mañana enviar email'},pending=new Promise(resolve=>{finish=resolve;});
-  const ctx={window:{LeteoNativeSpeech:{native:true}},keepListening:false,nativeStopPromise:pending,
-    $:()=>input,stopSpeechRecognition:()=>pending,focusInput:()=>{},
+  const ctx={window:{LeteoNativeSpeech:{native:true}},keepListening:false,nativeStopPromise:null,
+    $:()=>input,stopSpeechRecognition:discard=>{assert.equal(discard,false);return pending;},focusInput:()=>{},
     C:{parseMany:text=>({entries:[{title:text}]})},openBatch:text=>{opened=text;}};
   vm.runInNewContext('window.guardarIdea=async function(){'+match[1]+'\n};',ctx);
   const review=ctx.window.guardarIdea();
-  assert.equal(opened,null,'Review must wait even when the user already pressed Stop');
+  assert.equal(opened,null,'Review must await the transcript even after an early recognizer stop');
   input.value='Mañana enviar email a Ticare a la una';finish();await review;
   assert.equal(opened,input.value);
-  console.log('Review waits for the final phrase after manual Stop.');
+  console.log('Review waits for the final phrase even after an early recognizer stop.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
