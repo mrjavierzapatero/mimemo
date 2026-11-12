@@ -52,7 +52,7 @@
     if(date.dataset.weekday&&$('bRepeat'+i).value==='weekly')date.value=C.nextWeekday(Number(date.dataset.weekday),input.value);
     timeDialog.close();refreshBatch();
   });
-  $('calHelp').insertAdjacentHTML('afterend','<div class="cal-alert-controls" id="calAlertControls" hidden><p id="calAlertStatus" role="status"></p><button type="button" id="calActivateAlerts">Activar avisos</button></div>');
+  $('calHelp').insertAdjacentHTML('afterend','<div class="cal-alert-controls" id="calAlertControls" hidden><p id="calAlertStatus" role="status"></p><button type="button" id="calActivateAlerts">Activar avisos</button><button type="button" id="calTestSound">Probar sonido</button></div>');
   const nativeAlerts=()=>window.LeteoNativeAlerts?.native?window.LeteoNativeAlerts:null;
   function updateAlertControls(){
     const controls=$('calAlertControls'),native=nativeAlerts();controls.hidden=!native;
@@ -115,7 +115,7 @@
     const reminders=preview?.ok?preview.agenda.occurrences?.[0]?.reminders:[];
     $('batchReminders').innerHTML='<strong>Avisos previstos</strong><ul>'+((reminders?.length?reminders:[{label:'Día anterior · 20:00'},{label:'Ese día · 09:00'},{label:'Una hora antes'}]).map(r=>'<li>'+html(r.label||'Aviso')+(r.at?'<span>'+html(formatAgendaInstant(r.at))+'</span>':'')+(['skipped-past','omitted-past'].includes(r.status)?'<span>Este aviso ya ha pasado.</span>':r.status==='needs-time'?'<span>Pendiente de añadir una hora.</span>':'')+'</li>').join(''))+'</ul><p>'+(nativeAlerts()?'Al guardar se activarán en el teléfono. Leteo pedirá permiso si hace falta.':'En esta prueba web no se enviarán al teléfono.')+'</p>';
     $('batchSave').textContent=batch.editId?'Guardar cambios':'Guardar cita';
-    $('batchStatus').textContent=invalid?'Revisa las '+invalid+(invalid===1?' entrada marcada.':' entradas marcadas.'):'No se guarda nada hasta que confirmes.';
+    $('batchStatus').textContent=batch.interrupted?'El dictado se interrumpió. Comprueba el texto y la hora antes de guardar.':invalid?'Revisa las '+invalid+(invalid===1?' entrada marcada.':' entradas marcadas.'):'No se guarda nada hasta que confirmes.';
   }
   function openBatch(text,parsed){
     returnFocus=document.activeElement;batch=parsed;
@@ -202,7 +202,12 @@
     if(!window.LeteoNativeSpeech?.native)stopSpeechRecognition(true);
     const entry=parsed.entries[0];
     if(!entry)return;
-    openBatch(text,{text,entries:[entry],editId:null});
+    const fromVoice=window.LeteoNativeSpeech?.native&&text===nativeDictatedText;
+    if(fromVoice&&!entry.date&&!entry.time&&(!entry.isAgenda||nativeDictationInterrupted)){
+      toast('El dictado quedó incompleto. Toca el micrófono para continuar o corrige el texto.');
+      return;
+    }
+    openBatch(text,{text,entries:[entry],editId:null,interrupted:fromVoice&&nativeDictationInterrupted});
   };
   window.editAgendaEntry=function(){
     const item=ideas.find(entry=>entry.id===curId);if(!item?.agenda)return;
@@ -295,6 +300,16 @@
     const native=nativeAlerts();if(!native)return;
     try{const result=await native.activateAll(ideas);applySyncResult(result);toast(result.ok?'Avisos del teléfono activados.':'Concede los permisos de notificaciones y alarmas para activar los avisos.');}
     catch(error){toast('No se pudieron activar los avisos. Inténtalo de nuevo.');}
+  });
+  $('calTestSound').addEventListener('click',async event=>{
+    const native=nativeAlerts();if(!native)return;
+    const button=event.currentTarget;button.disabled=true;
+    try{
+      const result=await native.testSound();
+      toast(result.ok?'La prueba sonará en 15 segundos. Puedes bloquear el móvil.':
+        result.reason.endsWith('-permission')?'Activa los permisos de notificaciones y alarmas y vuelve a probar.':'No se pudo programar la prueba de sonido.');
+    }catch(error){toast('No se pudo programar la prueba de sonido.');}
+    finally{button.disabled=false;}
   });
   window.addEventListener('load',async()=>{
     const native=nativeAlerts();if(!native)return;

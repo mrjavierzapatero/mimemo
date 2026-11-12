@@ -1,9 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { planNotifications, notificationIds } from './plan-notifications.mjs';
+import { alertChannelId, planNotifications, notificationIds } from './plan-notifications.mjs';
 
 const native = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
-const channelId = 'leteo-alerts-v1';
+const testNotificationId = -710004;
 let channelReady = false;
 
 async function ensureReady(request = false) {
@@ -20,7 +20,7 @@ async function ensureReady(request = false) {
   if (exact.exact_alarm !== 'granted') return { ok: false, reason: 'exact-alarm-permission' };
   if (!channelReady) {
     await LocalNotifications.createChannel({
-      id: channelId,
+      id: alertChannelId,
       name: 'Avisos de Leteo',
       description: 'Recordatorios de las citas guardadas en Casa',
       importance: 4,
@@ -64,7 +64,8 @@ async function syncAll(items) {
   const pending = await LocalNotifications.getPending();
   const owned = pending.notifications.filter(n => n.extra?.leteo && !n.extra?.test);
   const desired = new Map(planned.map(n => [n.id, n]));
-  const stale = owned.filter(n => !desired.has(n.id) || n.extra?.fingerprint !== desired.get(n.id).extra.fingerprint);
+  const stale = owned.filter(n => !desired.has(n.id) || n.extra?.channelId !== alertChannelId ||
+    n.extra?.fingerprint !== desired.get(n.id).extra.fingerprint);
   if (stale.length) await LocalNotifications.cancel({ notifications: stale.map(n => ({ id: n.id })) });
   const current = new Set(owned.filter(n => !stale.includes(n)).map(n => n.id));
   const missing = planned.filter(n => !current.has(n.id));
@@ -85,4 +86,25 @@ async function activateAll(items) {
   return syncAll(items);
 }
 
-window.LeteoNativeAlerts = { native, ensureReady, cancelItem, scheduleItem, syncAll, activateAll };
+async function testSound() {
+  const ready = await ensureReady(true);
+  if (!ready.ok) return ready;
+  const result = await LocalNotifications.schedule({ notifications: [{
+    id: testNotificationId,
+    title: 'Prueba de sonido de Leteo',
+    body: 'Este es el tono de tus avisos de cita.',
+    channelId: alertChannelId,
+    foreground: true,
+    isExactNotification: true,
+    isExactMandatory: true,
+    schedule: { at: new Date(Date.now() + 15000), allowWhileIdle: true },
+    extra: { leteo: true, test: true }
+  }] });
+  if (result.warning) return { ok: false, reason: 'inexact' };
+  const pending = await LocalNotifications.getPending();
+  return pending.notifications.some(n => n.id === testNotificationId)
+    ? { ok: true }
+    : { ok: false, reason: 'missing-pending' };
+}
+
+window.LeteoNativeAlerts = { native, ensureReady, cancelItem, scheduleItem, syncAll, activateAll, testSound };

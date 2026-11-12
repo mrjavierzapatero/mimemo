@@ -49,7 +49,7 @@ async function start(callbacks) {
       }),
       Dictation.addListener('listeningState', event => {
         if (token !== generation) return;
-        active = event.status === 'started';
+        active = event.status === 'started' || event.status === 'reconnecting';
         handlers.onState?.(event);
       }),
       Dictation.addListener('error', event => {
@@ -67,8 +67,6 @@ async function start(callbacks) {
     const result = await Dictation.start();
     if (result?.ok === false) return result;
     if (token !== generation) {
-      await Dictation.stop({ discard: true });
-      await removeListeners();
       return { ok: false, reason: 'cancelled' };
     }
     return { ok: true };

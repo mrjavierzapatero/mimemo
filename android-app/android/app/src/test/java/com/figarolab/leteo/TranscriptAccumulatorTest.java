@@ -31,11 +31,12 @@ public class TranscriptAccumulatorTest {
         assertEquals("Mañana a la una enviar email a Ticare", transcript.text());
     }
 
-    @Test public void terminalFullResultDoesNotDuplicateSegments() {
+    @Test public void finalResultAfterRestartKeepsTheFirstUtterance() {
         TranscriptAccumulator transcript = new TranscriptAccumulator();
-        transcript.segment("Mañana a la una");
+        transcript.partial("Mañana a la una");
+        transcript.finishUtterance("");
         transcript.partial("enviar email");
-        transcript.terminal("Mañana a la una enviar email a Ticare");
+        transcript.finishUtterance("enviar email a Ticare");
         assertEquals("Mañana a la una enviar email a Ticare", transcript.text());
     }
 

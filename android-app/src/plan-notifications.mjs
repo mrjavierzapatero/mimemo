@@ -1,4 +1,5 @@
 const zone = 'Europe/Madrid';
+export const alertChannelId = 'leteo-alerts-v2';
 const partsFormat = new Intl.DateTimeFormat('en-GB', {
   timeZone: zone, year: 'numeric', month: 'numeric', day: 'numeric',
   hour: 'numeric', minute: 'numeric', hourCycle: 'h23'
@@ -52,11 +53,11 @@ export function planNotifications(item, now = new Date()) {
       title: agenda.title || item.title || 'Leteo',
       body: [reminder.label, eventLabel].filter(Boolean).join(' · '),
       schedule,
-      channelId: 'leteo-alerts-v1',
+      channelId: alertChannelId,
       foreground: true,
       isExactNotification: true,
       isExactMandatory: true,
-      extra: { leteo: true, itemId: item.id, kind: reminder.kind, fingerprint: agenda.fingerprint }
+      extra: { leteo: true, itemId: item.id, kind: reminder.kind, fingerprint: agenda.fingerprint, channelId: alertChannelId }
     }];
   });
 }

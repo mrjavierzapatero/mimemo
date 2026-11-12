@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=leteo-20261108">
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=leteo-20261108">
   <title>Leteo</title>
-  <link rel="stylesheet" href="calendar.css?v=20261109-v7">
+  <link rel="stylesheet" href="calendar.css?v=20261112-v8">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -313,7 +313,7 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .proc-txt{color:#fff;font-size:15px;font-weight:500;}
   </style>
-  <link rel="stylesheet" href="branding.css?v=20261109-v7">
+  <link rel="stylesheet" href="branding.css?v=20261112-v8">
 </head>
 <body>
 
@@ -560,8 +560,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="agenda.js?v=20261109-v7"></script>
-<script src="waveform.js?v=20261109-v7"></script>
+<script src="agenda.js?v=20261112-v8"></script>
+<script src="waveform.js?v=20261112-v8"></script>
 <script>
 'use strict';
 // ── CONFIG ──────────────────────────────────────────────
@@ -578,6 +578,8 @@ let recognition=null, isListening=false, keepListening=false, finalTranscript=''
 let speechBase='', speechCarryInterim='', speechSessionHadResult=false, speechSessionHadFinal=false;
 let speechIgnoreEvents=false, speechStarting=false, speechStartFailures=0, speechNetworkFailures=0;
 let nativeStopPromise=null;
+let nativeDictatedText='';
+let nativeDictationInterrupted=false;
 const waveController=window.LeteoWaves?.create(document.getElementById('recordingWave'));
 let reminderInterval=null;
 
@@ -730,21 +732,28 @@ async function startNativeDictation(){
   if(nativeStopPromise)return;
   var input=document.getElementById('ideaInput');
   var base=input.value.trim();
+  nativeDictationInterrupted=false;
   keepListening=true;
   setMicState(false);
   document.getElementById('recLbl').textContent='Conectando…';
   var result=await window.LeteoNativeSpeech.start({
     onText:function(text){
       input.value=mergeSpeechSegments(base,text);
+      nativeDictatedText=input.value.trim();
       finalTranscript=input.value;
       updateCaptureState();
     },
     onLevel:function(level){waveController?.setLevel(level);},
     onState:function(event){
       if(keepListening&&event.status==='started')setMicState(true);
+      if(keepListening&&event.status==='reconnecting'){
+        setMicState(false);
+        document.getElementById('recLbl').textContent='Volviendo a escuchar…';
+      }
       if(event.status==='stopped'){keepListening=false;setMicState(false);}
     },
     onError:function(event){
+      nativeDictationInterrupted=true;
       keepListening=false;setMicState(false);
       toast(event.message||'Se interrumpió el dictado. El texto queda aquí para corregirlo.');
     }
@@ -1561,6 +1570,7 @@ function init(){
 	    if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); guardarIdea(); }
 	  });
 	  document.getElementById('ideaInput').addEventListener('input', function(){
+	    nativeDictatedText='';nativeDictationInterrupted=false;
 	    if(keepListening){stopSpeechRecognition(true);toast('Dictado detenido para corregir el texto.');}
 	  });
 	  document.getElementById('askInput').addEventListener('keydown', function(e){
@@ -1574,7 +1584,7 @@ function init(){
 
   runSplash();
   scheduleReminders();
-  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261109-v7').catch(function(){});
+  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261112-v8').catch(function(){});
 }
 init();
 
@@ -1594,7 +1604,7 @@ function normalizeMemory(i){
   return i;
 }
 </script>
-<script src="calendar.js?v=20261109-v7"></script>
-  <script src="calendar-ui.js?v=20261109-v7"></script>
+<script src="calendar.js?v=20261112-v8"></script>
+  <script src="calendar-ui.js?v=20261112-v8"></script>
 </body>
 </html>

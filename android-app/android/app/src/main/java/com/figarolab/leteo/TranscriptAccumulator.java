@@ -14,15 +14,12 @@ final class TranscriptAccumulator {
         partial = "";
     }
 
-    void terminal(String text) {
-        String next = clean(text);
-        if (next.isEmpty()) return;
-        if (confirmed.isEmpty() || next.equals(confirmed) || next.startsWith(confirmed + " ")) {
-            confirmed = next;
-        } else {
-            confirmed = join(confirmed, next);
-        }
-        partial = "";
+    boolean finishUtterance(String result) {
+        String text = clean(result);
+        if (text.isEmpty()) text = partial;
+        if (text.isEmpty()) return false;
+        segment(text);
+        return true;
     }
 
     String text() { return join(confirmed, partial); }
