@@ -31,7 +31,7 @@ public class TranscriptAccumulatorTest {
         assertEquals("Mañana a la una enviar email a Ticare", transcript.text());
     }
 
-    @Test public void finalResultAfterRestartKeepsTheFirstUtterance() {
+    @Test public void finalResultAfterPauseKeepsTheFirstUtterance() {
         TranscriptAccumulator transcript = new TranscriptAccumulator();
         transcript.partial("Mañana a la una");
         transcript.finishUtterance("");

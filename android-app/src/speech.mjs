@@ -49,7 +49,7 @@ async function start(callbacks) {
       }),
       Dictation.addListener('listeningState', event => {
         if (token !== generation) return;
-        active = event.status === 'started' || event.status === 'reconnecting';
+        active = event.status === 'started';
         handlers.onState?.(event);
       }),
       Dictation.addListener('error', event => {

@@ -1,13 +1,13 @@
-const CACHE = 'leteo-v17-dictation-ring-20261112';
+const CACHE = 'leteo-v18-mic-and-alarms-20261112';
 const ASSETS = [
   './',
   './index.html',
-  './agenda.js?v=20261112-v8',
-  './waveform.js?v=20261112-v8',
-  './calendar.js?v=20261112-v8',
-  './calendar-ui.js?v=20261112-v8',
-  './calendar.css?v=20261112-v8',
-  './branding.css?v=20261112-v8',
+  './agenda.js?v=20261112-v9',
+  './waveform.js?v=20261112-v9',
+  './calendar.js?v=20261112-v9',
+  './calendar-ui.js?v=20261112-v9',
+  './calendar.css?v=20261112-v9',
+  './branding.css?v=20261112-v9',
   './manifest.json',
   './assets/icons/icon-192.png?v=leteo-20261108',
   './assets/icons/icon-512.png?v=leteo-20261108',

@@ -1,13 +1,12 @@
 package com.figarolab.leteo;
 
 import android.Manifest;
-import android.content.Intent;
-import android.os.Bundle;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.Looper;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
+import android.os.SystemClock;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -16,254 +15,211 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.vosk.Model;
+import org.vosk.Recognizer;
 
-/** Keeps one dictation open across utterances from the device's speech service. */
+/** Records and decodes Spanish on the phone until the user stops the dictation. */
 @CapacitorPlugin(name = "LeteoDictation", permissions = {
     @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = "microphone")
 })
 public class LeteoDictationPlugin extends Plugin {
-    private static final long START_TIMEOUT_MS = 12000;
-    private static final long FINAL_TIMEOUT_MS = 7000;
-    private static final long RETRY_DELAY_MS = 180;
-    private static final int MAX_EMPTY_UTTERANCES = 3;
+    private static final int SAMPLE_RATE = 16000;
+    private static final int CHUNK_SAMPLES = 1600;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    // The model and recognizer belong to the audio thread.
+    private Model model;
     private Session active;
+    private boolean destroyed;
 
     private static final class Session {
-        final TranscriptAccumulator transcript = new TranscriptAccumulator();
         final List<PluginCall> stops = new ArrayList<>();
+        final TranscriptAccumulator transcript = new TranscriptAccumulator();
         PluginCall start;
-        SpeechRecognizer recognizer;
-        Runnable timeout;
-        boolean stopping;
-        boolean ready;
-        int emptyUtterances;
+        volatile boolean stopping;
+        volatile boolean discard;
     }
 
     @PluginMethod
     public void start(PluginCall call) {
-        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+        if (getPermissionState("microphone") == PermissionState.GRANTED) {
+            main.post(() -> begin(call));
+        } else {
             requestPermissionForAlias("microphone", call, "microphoneGranted");
-            return;
         }
-        main.post(() -> startSession(call));
     }
 
     @PermissionCallback
     private void microphoneGranted(PluginCall call) {
         if (getPermissionState("microphone") == PermissionState.GRANTED) {
-            main.post(() -> startSession(call));
+            main.post(() -> begin(call));
         } else {
             call.reject("Activa el permiso del micrófono para dictar.", "MICROPHONE_PERMISSION");
         }
     }
 
-    private void startSession(PluginCall call) {
-        if (active != null) {
-            call.reject("Ya hay un dictado en curso.", "ALREADY_RECORDING");
-            return;
-        }
-        if (!SpeechRecognizer.isRecognitionAvailable(getContext())) {
-            call.reject("No hay un servicio de reconocimiento de voz disponible en este teléfono.", "RECOGNIZER_UNAVAILABLE");
+    private void begin(PluginCall call) {
+        if (destroyed || active != null) {
+            call.reject("El micrófono aún no está disponible.", "MICROPHONE_BUSY");
             return;
         }
         Session session = new Session();
         session.start = call;
         active = session;
-        listen(session);
+        worker.execute(() -> record(session));
     }
 
-    private void listen(Session session) {
-        if (active != session || session.stopping) return;
-        session.ready = false;
+    private void record(Session session) {
+        String error = null;
         try {
-            SpeechRecognizer recognizer = SpeechRecognizer.createSpeechRecognizer(getContext());
-            session.recognizer = recognizer;
-            recognizer.setRecognitionListener(listener(session, recognizer));
-            Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "es-ES")
-                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-            setTimeout(session, START_TIMEOUT_MS, () ->
-                fail(session, "START_TIMEOUT", "El servicio de voz no volvió a escuchar. Puedes continuar el dictado."));
-            recognizer.startListening(intent);
-        } catch (RuntimeException error) {
-            fail(session, "START_FAILED", "No se pudo abrir el micrófono. Puedes volver a intentarlo.");
+            if (model == null) model = OfflineSpeechModel.open(getContext());
+            if (!session.stopping) {
+                try (Recognizer recognizer = new Recognizer(model, SAMPLE_RATE)) {
+                    capture(session, recognizer);
+                }
+            }
+        } catch (Exception | LinkageError failure) {
+            error = "El dictado se interrumpió. Conservamos el texto reconocido.";
+        } finally {
+            String text = session.transcript.text();
+            String problem = error;
+            main.post(() -> finish(session, text, problem));
         }
     }
 
-    private RecognitionListener listener(Session session, SpeechRecognizer recognizer) {
-        return new RecognitionListener() {
-            private boolean current() {
-                return active == session && session.recognizer == recognizer;
+    @android.annotation.SuppressLint("MissingPermission")
+    private void capture(Session session, Recognizer recognizer) throws IOException, JSONException {
+        int minimum = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        if (minimum <= 0) throw new IOException("Audio format unavailable");
+        AudioRecord recorder = new AudioRecord(
+            MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO,
+            AudioFormat.ENCODING_PCM_16BIT, Math.max(minimum * 2, CHUNK_SAMPLES * 4));
+        try {
+            if (recorder.getState() != AudioRecord.STATE_INITIALIZED) throw new IOException("Microphone unavailable");
+            if (session.stopping) return;
+            recorder.startRecording();
+            if (recorder.getRecordingState() != AudioRecord.RECORDSTATE_RECORDING) throw new IOException("Microphone not started");
+            main.post(() -> ready(session));
+            readAudio(session, recognizer, recorder);
+        } finally {
+            try {
+                if (recorder.getRecordingState() == AudioRecord.RECORDSTATE_RECORDING) recorder.stop();
+            } finally {
+                recorder.release();
             }
+        }
+        if (!session.discard) session.transcript.finishUtterance(value(recognizer.getFinalResult(), "text"));
+    }
 
-            @Override public void onReadyForSpeech(Bundle params) { ready(); }
-            @Override public void onBeginningOfSpeech() { ready(); }
-            @Override public void onBufferReceived(byte[] buffer) {}
-            @Override public void onEndOfSpeech() {}
-            @Override public void onEvent(int type, Bundle params) {}
-
-            private void ready() {
-                if (!current() || session.ready || session.stopping) return;
-                session.ready = true;
-                clearTimeout(session);
-                emitState("started", "microphone-ready");
-                if (session.start != null) {
-                    session.start.resolve(new JSObject().put("ok", true));
-                    session.start = null;
-                }
+    private void readAudio(Session session, Recognizer recognizer, AudioRecord recorder) throws IOException, JSONException {
+        short[] samples = new short[CHUNK_SAMPLES];
+        int filled = 0;
+        String lastText = "";
+        while (!session.stopping) {
+            int count = recorder.read(samples, filled, samples.length - filled, AudioRecord.READ_NON_BLOCKING);
+            if (count < 0) throw new IOException("Audio capture stopped");
+            filled += count;
+            if (filled < samples.length) {
+                SystemClock.sleep(15);
+                continue;
             }
-
-            @Override public void onRmsChanged(float rms) {
-                if (!current() || session.stopping) return;
-                double level = Math.max(0, Math.min(1, (rms + 2) / 12));
+            decode(session, recognizer, samples, filled);
+            filled = 0;
+            double energy = 0;
+            for (short sample : samples) energy += (double) sample * sample;
+            double db = 20 * Math.log10(Math.max(1, Math.sqrt(energy / samples.length)) / 32768.0);
+            double level = Math.max(0, Math.min(1, (db + 50) / 40));
+            String text = session.transcript.text();
+            boolean changed = !text.equals(lastText);
+            lastText = text;
+            main.post(() -> {
+                if (active != session || session.discard) return;
                 notifyListeners("audioLevel", new JSObject().put("level", level));
-            }
-
-            @Override public void onPartialResults(Bundle results) {
-                if (!current()) return;
-                ready();
-                String text = best(results);
-                if (!text.isEmpty()) session.transcript.partial(text);
-                emitText(session);
-            }
-
-            @Override public void onResults(Bundle results) {
-                if (!current()) return;
-                endUtterance(session, best(results));
-            }
-
-            @Override public void onError(int error) {
-                if (!current()) return;
-                if (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
-                    endUtterance(session, "");
-                    return;
-                }
-                String message = error == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS
-                    ? "Activa el permiso del micrófono para dictar."
-                    : "Se interrumpió el servicio de voz. El texto queda aquí para continuar o corregirlo.";
-                fail(session, "RECOGNIZER_" + error, message);
-            }
-        };
+                if (changed) emitText(text);
+            });
+        }
+        if (!session.discard) {
+            int count = recorder.read(samples, filled, samples.length - filled, AudioRecord.READ_NON_BLOCKING);
+            if (count > 0) filled += count;
+            if (filled > 0) decode(session, recognizer, samples, filled);
+        }
     }
 
-    private void endUtterance(Session session, String text) {
-        // A provider may end an utterance with only a partial hypothesis.
-        // Retain it as editable text instead of replacing the whole dictation.
-        boolean hasText = session.transcript.finishUtterance(text);
-        emitText(session);
-        if (session.stopping) {
-            finish(session, "user-stop", false, true);
-            return;
+    private static void decode(Session session, Recognizer recognizer, short[] samples, int length) throws JSONException {
+        // Vosk may finish a text segment on silence. AudioRecord keeps reading.
+        if (recognizer.acceptWaveForm(samples, length)) {
+            session.transcript.finishUtterance(value(recognizer.getResult(), "text"));
+        } else {
+            session.transcript.partial(value(recognizer.getPartialResult(), "partial"));
         }
-        session.emptyUtterances = hasText ? 0 : session.emptyUtterances + 1;
-        if (session.emptyUtterances >= MAX_EMPTY_UTTERANCES) {
-            fail(session, "NO_SPEECH", "El dictado se detuvo tras varios silencios. Toca el micrófono para continuar.");
-            return;
-        }
-        releaseRecognizer(session);
-        emitState("reconnecting", "utterance-ended");
-        setTimeout(session, RETRY_DELAY_MS, () -> listen(session));
+    }
+
+    private static String value(String json, String key) throws JSONException {
+        return new JSONObject(json).optString(key);
+    }
+
+    private void ready(Session session) {
+        if (active != session || session.stopping) return;
+        notifyListeners("listeningState", new JSObject().put("status", "started"));
+        session.start.resolve(new JSObject().put("ok", true));
+        session.start = null;
     }
 
     @PluginMethod
     public void stop(PluginCall call) {
         main.post(() -> {
-            Session session = active;
-            if (session == null) {
+            if (active == null) {
                 call.resolve(new JSObject().put("text", "").put("final", true));
                 return;
             }
-            session.stops.add(call);
-            if (Boolean.TRUE.equals(call.getBoolean("discard", false))) {
-                finish(session, "discard", true, false);
-                return;
-            }
-            if (session.stopping) return;
-            session.stopping = true;
-            if (session.recognizer == null || !session.ready) {
-                finish(session, "user-stop", false, true);
-                return;
-            }
-            setTimeout(session, FINAL_TIMEOUT_MS, () ->
-                fail(session, "FINAL_RESULT_TIMEOUT", "El servicio de voz no confirmó el final. Revisa las últimas palabras."));
-            try {
-                session.recognizer.stopListening();
-            } catch (RuntimeException error) {
-                fail(session, "STOP_FAILED", "El servicio de voz no confirmó el final. Revisa las últimas palabras.");
-            }
+            active.stops.add(call);
+            if (Boolean.TRUE.equals(call.getBoolean("discard", false))) active.discard = true;
+            active.stopping = true;
         });
     }
 
-    private void setTimeout(Session session, long delay, Runnable callback) {
-        clearTimeout(session);
-        session.timeout = callback;
-        main.postDelayed(callback, delay);
+    private void emitText(String text) {
+        notifyListeners("partialResults", new JSObject().put("text", text));
     }
 
-    private void clearTimeout(Session session) {
-        if (session.timeout != null) main.removeCallbacks(session.timeout);
-        session.timeout = null;
-    }
-
-    private void releaseRecognizer(Session session) {
-        SpeechRecognizer recognizer = session.recognizer;
-        session.recognizer = null;
-        if (recognizer == null) return;
-        try { recognizer.destroy(); } catch (RuntimeException ignored) {}
-    }
-
-    private void emitText(Session session) {
-        notifyListeners("partialResults", new JSObject().put("text", session.transcript.text()));
-    }
-
-    private void emitState(String status, String reason) {
-        notifyListeners("listeningState", new JSObject().put("status", status).put("reason", reason));
-    }
-
-    private static String best(Bundle bundle) {
-        if (bundle == null) return "";
-        ArrayList<String> matches = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-        return matches == null || matches.isEmpty() || matches.get(0) == null ? "" : matches.get(0).trim();
-    }
-
-    private void fail(Session session, String code, String message) {
-        if (active != session) return;
-        notifyListeners("error", new JSObject().put("code", code).put("message", message));
-        if (session.start != null) {
-            session.start.reject(message, code);
-            session.start = null;
-        }
-        finish(session, "error", false, false);
-    }
-
-    private void finish(Session session, String reason, boolean discard, boolean finalResult) {
+    private void finish(Session session, String text, String problem) {
         if (active != session) return;
         active = null;
-        clearTimeout(session);
-        releaseRecognizer(session);
-        if (session.start != null) {
-            session.start.resolve(new JSObject().put("ok", false).put("reason", "cancelled"));
-            session.start = null;
+        if (session.discard) text = "";
+        if (problem != null && !session.discard) {
+            notifyListeners("error", new JSObject().put("code", "OFFLINE_DICTATION").put("message", problem));
         }
-        String text = discard ? "" : session.transcript.text();
-        if (!discard) emitText(session);
+        if (session.start != null) {
+            session.start.resolve(new JSObject().put("ok", false)
+                .put("reason", problem == null || session.discard ? "cancelled" : "start-failed")
+                .put("reported", problem != null && !session.discard));
+        }
+        if (!session.discard) emitText(text);
         notifyListeners("audioLevel", new JSObject().put("level", 0));
-        emitState("stopped", reason);
+        notifyListeners("listeningState", new JSObject().put("status", "stopped"));
         for (PluginCall call : session.stops) {
-            call.resolve(new JSObject().put("text", text).put("final", finalResult));
+            call.resolve(new JSObject().put("text", text).put("final", problem == null));
         }
     }
 
     @Override protected void handleOnPause() {
-        main.post(() -> { if (active != null) finish(active, "background", false, false); });
+        main.post(() -> { if (active != null) active.stopping = true; });
     }
 
     @Override protected void handleOnDestroy() {
-        main.post(() -> { if (active != null) finish(active, "destroyed", false, false); });
+        main.post(() -> {
+            if (destroyed) return;
+            destroyed = true;
+            if (active != null) active.stopping = true;
+            worker.execute(() -> { if (model != null) model.close(); });
+            worker.shutdown();
+        });
     }
 }

@@ -72,5 +72,11 @@ test('falta de hora y cita explícitamente sin hora son casos distintos',()=>{
   const partial=C.parseMany('Los jueves',now).entries[0];
   assert.equal(partial.title,'');assert.equal(C.prepare({...partial,allDay:true},now).ok,false);
 });
+test('la transcripción local conserva la hora dicha al principio y el resto de la cita',()=>{
+  const entry=C.parseMany('a las quince cuarenta y cinco todos los jueves tengo clase de piano','2026-11-12T08:00:00Z').entries[0];
+  assert.equal(entry.time,'15:45');
+  assert.equal(entry.title,'Clase de piano');
+  assert.equal(entry.recurrence,'weekly');
+});
 const result={clock:now,total:tests.length,passed:tests.filter(t=>t.pass).length,failed:tests.filter(t=>!t.pass).length,tests,externalWrites:0,realAudioUsed:false};
 console.log(JSON.stringify(result,null,2));if(result.failed)process.exitCode=1;

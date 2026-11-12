@@ -54,18 +54,27 @@
   });
   $('calHelp').insertAdjacentHTML('afterend','<div class="cal-alert-controls" id="calAlertControls" hidden><p id="calAlertStatus" role="status"></p><button type="button" id="calActivateAlerts">Activar avisos</button><button type="button" id="calTestSound">Probar sonido</button></div>');
   const nativeAlerts=()=>window.LeteoNativeAlerts?.native?window.LeteoNativeAlerts:null;
+  const alertMessages={
+    'notification-permission':'Permite las notificaciones de Leteo en Ajustes.',
+    'exact-alarm-permission':'Permite «Alarmas y recordatorios» para Leteo en Ajustes.',
+    'channel-blocked':'Activa la categoría «Avisos de Leteo» en los ajustes de notificaciones.',
+    'channel-silent':'Pon la categoría «Avisos de Leteo» en Alerta y elige un sonido.'
+  };
+  let alertIssue='';
   function updateAlertControls(){
     const controls=$('calAlertControls'),native=nativeAlerts();controls.hidden=!native;
     if(!native)return;
     const live=ideas.filter(item=>item.agenda&&item.agenda.status!=='cancelled');
     const pending=live.filter(item=>item.agenda.deliveryMode==='pending-permission'||!item.agenda.deliveryMode).length;
     const active=live.filter(item=>item.agenda.deliveryMode==='native-local').length;
-    $('calAlertStatus').textContent=pending?pending+' '+(pending===1?'cita pendiente':'citas pendientes')+' de activar avisos.':active?active+' '+(active===1?'cita con avisos activos':'citas con avisos activos')+' en todo el calendario.':'Los avisos se activan al guardar una cita.';
-    $('calActivateAlerts').hidden=!pending;
+    $('calAlertStatus').textContent=alertIssue||(pending?pending+' '+(pending===1?'cita pendiente':'citas pendientes')+' de activar avisos.':active?active+' '+(active===1?'cita con avisos programados':'citas con avisos programados')+' en todo el calendario.':'Los avisos se activan al guardar una cita.');
+    $('calActivateAlerts').textContent=pending||alertIssue?'Activar avisos':'Reprogramar avisos';
+    $('calActivateAlerts').hidden=!pending&&!active&&!alertIssue;
   }
   function applySyncResult(result){
+    alertIssue=result.ok?'':alertMessages[result.reason]||'No se pudieron programar todos los avisos.';
     if(!result.ok){
-      if(['notification-permission','exact-alarm-permission'].includes(result.reason)){
+      if(alertMessages[result.reason]){
         let changed=false;
         for(const item of ideas){if(item.agenda&&item.agenda.status!=='cancelled'&&item.agenda.deliveryMode!=='pending-permission'){item.agenda.deliveryMode='pending-permission';changed=true;}}
         if(changed)saveIdeas();
@@ -298,7 +307,7 @@
   $('calBody').addEventListener('touchend',()=>{pinch=null;});$('calBody').addEventListener('touchcancel',()=>{pinch=null;clearPress();});
   $('calActivateAlerts').addEventListener('click',async()=>{
     const native=nativeAlerts();if(!native)return;
-    try{const result=await native.activateAll(ideas);applySyncResult(result);toast(result.ok?'Avisos del teléfono activados.':'Concede los permisos de notificaciones y alarmas para activar los avisos.');}
+    try{const result=await native.activateAll(ideas);applySyncResult(result);toast(result.ok?'Avisos del teléfono programados.':alertIssue);}
     catch(error){toast('No se pudieron activar los avisos. Inténtalo de nuevo.');}
   });
   $('calTestSound').addEventListener('click',async event=>{
@@ -306,8 +315,8 @@
     const button=event.currentTarget;button.disabled=true;
     try{
       const result=await native.testSound();
-      toast(result.ok?'La prueba sonará en 15 segundos. Puedes bloquear el móvil.':
-        result.reason.endsWith('-permission')?'Activa los permisos de notificaciones y alarmas y vuelve a probar.':'No se pudo programar la prueba de sonido.');
+      toast(result.ok?'Prueba programada para dentro de 15 segundos. Puedes bloquear el móvil.':
+        alertMessages[result.reason]||'No se pudo programar la prueba de sonido.');
     }catch(error){toast('No se pudo programar la prueba de sonido.');}
     finally{button.disabled=false;}
   });

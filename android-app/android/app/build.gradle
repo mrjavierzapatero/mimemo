@@ -7,8 +7,8 @@ android {
         applicationId "com.figarolab.leteo"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "0.7.0-prueba"
+        versionCode 8
+        versionName "0.8.0-prueba"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -22,6 +22,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/leteoSpeechAssets'))
 }
 
 repositories {
@@ -31,6 +32,8 @@ repositories {
 }
 
 dependencies {
+    implementation 'com.alphacephei:vosk-android:0.3.75@aar'
+    implementation 'net.java.dev.jna:jna:5.18.1@aar'
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
@@ -41,6 +44,11 @@ dependencies {
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
 }
+
+def prepareSpeechModel = tasks.register('prepareSpeechModel', Exec) {
+    commandLine 'node', rootProject.file('../scripts/prepare-speech-model.mjs')
+}
+tasks.named('preBuild').configure { dependsOn(prepareSpeechModel) }
 
 apply from: 'capacitor.build.gradle'
 

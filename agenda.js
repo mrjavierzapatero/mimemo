@@ -33,13 +33,14 @@
     numberWords[tens]=value;
     for(const unit of ['uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'])numberWords[tens+' y '+unit]=value+numberWords[unit];
   }
-  const wordPattern=limit=>Object.keys(numberWords).filter(w=>numberWords[w]<=limit).sort((a,b)=>b.length-a.length).map(w=>w.replace(/[aeiou]/g,v=>'['+v+({a:'á',e:'é',i:'í',o:'ó',u:'ú'}[v])+']').replace(/ /g,'\\s+')).join('|');
+  const wordPattern=(limit,min=1)=>Object.keys(numberWords).filter(w=>numberWords[w]>=min&&numberWords[w]<=limit).sort((a,b)=>b.length-a.length).map(w=>w.replace(/[aeiou]/g,v=>'['+v+({a:'á',e:'é',i:'í',o:'ó',u:'ú'}[v])+']').replace(/ /g,'\\s+')).join('|');
   const dateGap='(?:\\s+|\\s*[,.;]\\s*)';
   // Shared with the calendar: match raw text so source spans remain literal.
   const namedDatePattern='\\b(\\d{1,2}|'+wordPattern(31)+')'+dateGap+'(?:de'+dateGap+')?('+months.join('|')+'|setiembre)(?:'+dateGap+'(?:(?:de|del)'+dateGap+')?(\\d{4}))?\\b';
   const hourWord='\\d{1,2}|'+wordPattern(23),minuteWord='cuarto|\\d{1,2}|'+wordPattern(59);
   const timePrefix='(?:a\\s+)?las?\\s*';
-  const timePattern='\\b(?:(?:'+timePrefix+')?(?<digital>\\d{1,2})\\s*[:h]\\s*(?<digits>\\d{2})|(?:'+timePrefix+')?(?<before>'+hourWord+')\\s+menos\\s+(?<subtract>'+minuteWord+')|'+timePrefix+'(?<spoken>'+hourWord+')(?:\\s+y\\s+(?<add>media|'+minuteWord+'))?)(?:\\s+(?:de|por)\\s+la\\s+(?<period>ma[ñn]ana|tarde|noche))?\\b';
+  const spokenMinutes='(?:\\s+y\\s+(?<add>media|'+minuteWord+')|\\s+(?<separateMinutes>\\d{2}|'+wordPattern(59,10)+'))?';
+  const timePattern='\\b(?:(?:'+timePrefix+')?(?<digital>\\d{1,2})\\s*[:h]\\s*(?<digits>\\d{2})|(?:'+timePrefix+')?(?<before>'+hourWord+')\\s+menos\\s+(?<subtract>'+minuteWord+')|'+timePrefix+'(?<spoken>'+hourWord+')'+spokenMinutes+')(?:\\s+(?:de|por)\\s+la\\s+(?<period>ma[ñn]ana|tarde|noche))?\\b';
   const dateReference='(?:pasado manana|manana|hoy|'+weekdays.join('|')+'|'+namedDatePattern+'|\\d{1,2}[/-]\\d{1,2}[/-]\\d{4})';
   const dateAlternatives=new RegExp('\\b'+dateReference+'\\b\\s*,?\\s+o\\s+(?:(?:el|este|proximo)\\s+)?'+dateReference+'\\b');
   const numberValue=value=>/^\d+$/.test(value)?Number(value):numberWords[clean(value)];
@@ -81,8 +82,8 @@
     });
     const clock=correctedClock?clocks.at(-1):clocks[0];
     if(clock){
-      const {digital,digits,before,subtract,spoken,add,period}=clock.groups;
-      const hour=digital||before||spoken,minutes=digits||subtract||add;
+      const {digital,digits,before,subtract,spoken,add,separateMinutes,period}=clock.groups;
+      const hour=digital||before||spoken,minutes=digits||subtract||add||separateMinutes;
       let h=clockHour(numberValue(hour),period,out.issues),m=minutes==='media'?30:minutes==='cuarto'?15:minutes?numberValue(minutes):0;
       const assumedAfternoon=!period&&h>=1&&h<=7&&!hour.startsWith('0');
       if(assumedAfternoon)h+=12;

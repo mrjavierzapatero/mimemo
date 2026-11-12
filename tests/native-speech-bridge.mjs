@@ -60,9 +60,7 @@ console.log('A cancelled startup cannot remove the following session listeners.'
 const e=harness();
 await e.api.start({onText:t=>e.received.push(t)});
 e.emit('partialResults',{text:'quiero que'});
-e.emit('listeningState',{status:'reconnecting'});
 assert.equal((await e.api.start({})).reason,'already-active');
-e.emit('listeningState',{status:'started'});
 e.emit('partialResults',{text:'quiero que mañana a las diez me recuerdes la cita'});
 assert.equal(e.received.at(-1),'quiero que mañana a las diez me recuerdes la cita');
 assert.equal(e.starts(),1);

@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=leteo-20261108">
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=leteo-20261108">
   <title>Leteo</title>
-  <link rel="stylesheet" href="calendar.css?v=20261112-v8">
+  <link rel="stylesheet" href="calendar.css?v=20261112-v9">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -313,7 +313,7 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .proc-txt{color:#fff;font-size:15px;font-weight:500;}
   </style>
-  <link rel="stylesheet" href="branding.css?v=20261112-v8">
+  <link rel="stylesheet" href="branding.css?v=20261112-v9">
 </head>
 <body>
 
@@ -560,8 +560,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="agenda.js?v=20261112-v8"></script>
-<script src="waveform.js?v=20261112-v8"></script>
+<script src="agenda.js?v=20261112-v9"></script>
+<script src="waveform.js?v=20261112-v9"></script>
 <script>
 'use strict';
 // ── CONFIG ──────────────────────────────────────────────
@@ -735,7 +735,7 @@ async function startNativeDictation(){
   nativeDictationInterrupted=false;
   keepListening=true;
   setMicState(false);
-  document.getElementById('recLbl').textContent='Conectando…';
+  document.getElementById('recLbl').textContent='Preparando micrófono…';
   var result=await window.LeteoNativeSpeech.start({
     onText:function(text){
       input.value=mergeSpeechSegments(base,text);
@@ -746,10 +746,6 @@ async function startNativeDictation(){
     onLevel:function(level){waveController?.setLevel(level);},
     onState:function(event){
       if(keepListening&&event.status==='started')setMicState(true);
-      if(keepListening&&event.status==='reconnecting'){
-        setMicState(false);
-        document.getElementById('recLbl').textContent='Volviendo a escuchar…';
-      }
       if(event.status==='stopped'){keepListening=false;setMicState(false);}
     },
     onError:function(event){
@@ -1584,7 +1580,7 @@ function init(){
 
   runSplash();
   scheduleReminders();
-  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261112-v8').catch(function(){});
+  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261112-v9').catch(function(){});
 }
 init();
 
@@ -1604,7 +1600,7 @@ function normalizeMemory(i){
   return i;
 }
 </script>
-<script src="calendar.js?v=20261112-v8"></script>
-  <script src="calendar-ui.js?v=20261112-v8"></script>
+<script src="calendar.js?v=20261112-v9"></script>
+  <script src="calendar-ui.js?v=20261112-v9"></script>
 </body>
 </html>

@@ -30,6 +30,12 @@ async function ensureReady(request = false) {
     });
     channelReady = true;
   }
+  const { channels } = await LocalNotifications.listChannels();
+  const channel = channels.find(candidate => candidate.id === alertChannelId);
+  if (!channel || channel.importance === 0) return { ok: false, reason: 'channel-blocked' };
+  if (channel.importance < 3 || !channel.sound || channel.sound === 'null') {
+    return { ok: false, reason: 'channel-silent' };
+  }
   return { ok: true };
 }
 
@@ -41,10 +47,12 @@ async function cancelItem(item) {
 
 async function scheduleItem(item, requestPermission = true) {
   if (!native) return { ok: false, reason: 'web' };
-  await cancelItem(item);
   const ready = await ensureReady(requestPermission);
   if (!ready.ok) return ready;
   const planned = planNotifications(item);
+  // Keep existing alarms intact when permissions are unavailable. Only replace
+  // them after the new schedule is ready to be submitted.
+  await cancelItem(item);
   if (!planned.length) return { ok: true, count: 0 };
   const result = await LocalNotifications.schedule({ notifications: planned });
   if (result.warning) return { ok: false, reason: 'inexact', warning: result.warning.code };
@@ -54,8 +62,8 @@ async function scheduleItem(item, requestPermission = true) {
   return count === planned.length ? { ok: true, count } : { ok: false, reason: 'missing-pending', count };
 }
 
-async function syncAll(items) {
-  const ready = await ensureReady(false);
+async function syncAll(items, rearm = false) {
+  const ready = await ensureReady(rearm);
   if (!ready.ok) return ready;
   const activeItems = (items || []).filter(item => item?.agenda && item.agenda.status !== 'cancelled');
   const planned = activeItems.flatMap(item => planNotifications(item));
@@ -64,15 +72,18 @@ async function syncAll(items) {
   const pending = await LocalNotifications.getPending();
   const owned = pending.notifications.filter(n => n.extra?.leteo && !n.extra?.test);
   const desired = new Map(planned.map(n => [n.id, n]));
-  const stale = owned.filter(n => !desired.has(n.id) || n.extra?.channelId !== alertChannelId ||
-    n.extra?.fingerprint !== desired.get(n.id).extra.fingerprint);
-  if (stale.length) await LocalNotifications.cancel({ notifications: stale.map(n => ({ id: n.id })) });
-  const current = new Set(owned.filter(n => !stale.includes(n)).map(n => n.id));
-  const missing = planned.filter(n => !current.has(n.id));
+  const obsolete = owned.filter(n => !desired.has(n.id));
+  const current = new Map(owned.map(n => [n.id, n]));
+  const missing = planned.filter(n => {
+    const previous = current.get(n.id);
+    return rearm || previous?.extra?.channelId !== alertChannelId ||
+      previous?.extra?.fingerprint !== n.extra.fingerprint;
+  });
   if (missing.length) {
     const result = await LocalNotifications.schedule({ notifications: missing });
     if (result.warning) return { ok: false, reason: 'inexact', warning: result.warning.code };
   }
+  if (obsolete.length) await LocalNotifications.cancel({ notifications: obsolete.map(n => ({ id: n.id })) });
   if (!planned.length) return { ok: true, count: 0, itemIds: [] };
   const check = await LocalNotifications.getPending();
   const confirmed = new Set(check.notifications.map(n => n.id));
@@ -81,9 +92,7 @@ async function syncAll(items) {
 }
 
 async function activateAll(items) {
-  const ready = await ensureReady(true);
-  if (!ready.ok) return ready;
-  return syncAll(items);
+  return syncAll(items, true);
 }
 
 async function testSound() {

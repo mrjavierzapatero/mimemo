@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:web": "node scripts/copy-web.mjs && esbuild src/notifications.mjs src/speech.mjs --bundle --format=iife --target=es2022 --outdir=www",
-    "sync": "npm run build:web && cap sync android",
+    "sync": "node scripts/patch-recurring-alarms.mjs && npm run build:web && cap sync android",
     "assets": "node scripts/make-assets.mjs",
     "apk:debug": "npm run sync && cd android && ./gradlew assembleDebug"
   },

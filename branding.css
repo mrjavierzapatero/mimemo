@@ -10,12 +10,14 @@ body{font-family:Roboto,Arial,sans-serif}
 #vGrabar .capture-brand{position:absolute;top:calc(13.5dvh + env(safe-area-inset-top,0px));left:0;right:0;display:flex;justify-content:center;transition:opacity .25s ease}
 #vGrabar .home-logo{width:90px;opacity:1;filter:none;margin:0}
 #vGrabar .capture-center{position:absolute;top:41%;left:0;right:0;display:flex;align-items:center;flex-direction:column}
-#vGrabar .rec-btn{margin:0;border:0;border-radius:0;background:none;box-shadow:none;width:min(88vw,400px);height:120px;display:flex;flex-direction:column;gap:14px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
+#vGrabar .rec-btn{--mic-yellow:#ffbc05;box-sizing:border-box;margin:0;border:1px solid var(--mic-yellow);border-radius:50%;background:none;box-shadow:none;width:132px;height:132px;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
+#vGrabar.is-recording .rec-btn{border-color:transparent;border-radius:0;width:min(88vw,400px);gap:14px}
 #vGrabar .rec-btn::before{display:none}
 #vGrabar .rec-btn:active{transform:none}
-.wave-stage{height:72px;width:100%;display:flex;align-items:center;justify-content:center}
+.wave-stage{height:48px;width:100%;display:flex;align-items:center;justify-content:center}
+#vGrabar.is-recording .wave-stage{height:72px}
 .voice-wave{display:block;overflow:visible;flex:none}
-.voice-wave-idle{width:44px;height:44px}
+.voice-wave-idle{width:44px;height:44px;fill:var(--mic-yellow)}
 #vGrabar .voice-wave-recording{display:none;width:min(84vw,360px);height:auto;max-height:104px}
 #vGrabar .g-lbl{font-size:12px;font-weight:700;letter-spacing:0;color:#111;opacity:1;line-height:16px;margin:0;text-transform:uppercase}
 #vGrabar.is-recording .capture-brand{opacity:0}
