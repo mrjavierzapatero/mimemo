@@ -10,10 +10,10 @@ body{font-family:Roboto,Arial,sans-serif}
 #vGrabar .capture-brand{position:absolute;top:calc(13.5dvh + env(safe-area-inset-top,0px));left:0;right:0;display:flex;justify-content:center;transition:opacity .25s ease}
 #vGrabar .home-logo{width:90px;opacity:1;filter:none;margin:0}
 #vGrabar .capture-center{position:absolute;top:41%;left:0;right:0;display:flex;align-items:center;flex-direction:column}
-#vGrabar .rec-btn{--mic-yellow:#ffbc05;box-sizing:border-box;margin:0;border:1px solid var(--mic-yellow);border-radius:50%;background:none;box-shadow:none;width:132px;height:132px;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
+#vGrabar .rec-btn{--mic-yellow:#ffbc05;box-sizing:border-box;margin:0;border:1px solid var(--mic-yellow);border-radius:50%;background:none;box-shadow:none;width:144px;height:144px;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
 #vGrabar.is-recording .rec-btn{border-color:transparent;border-radius:0;width:min(88vw,400px);gap:14px}
 #vGrabar .rec-btn::before{display:none}
-#vGrabar .rec-btn:active{transform:none}
+#vGrabar .rec-btn:active{transform:scale(.98);background:#f5f5f5}
 .wave-stage{height:48px;width:100%;display:flex;align-items:center;justify-content:center}
 #vGrabar.is-recording .wave-stage{height:72px}
 .voice-wave{display:block;overflow:visible;flex:none}
@@ -23,7 +23,7 @@ body{font-family:Roboto,Arial,sans-serif}
 #vGrabar.is-recording .capture-brand{opacity:0}
 #vGrabar.is-recording .voice-wave-idle{display:none}
 #vGrabar.is-recording .voice-wave-recording{display:block}
-#vGrabar .voice-wrap{position:absolute;top:calc(41% + 144px);left:26px;right:26px;width:auto;max-width:440px;margin:0 auto;padding:0;background:none;border:0;border-radius:0;box-shadow:none;min-height:0;display:block}
+#vGrabar .voice-wrap{position:absolute;top:calc(41% + 166px);left:26px;right:26px;width:auto;max-width:440px;margin:0 auto;padding:0;background:none;border:0;border-radius:0;box-shadow:none;min-height:0;display:block}
 #vGrabar .voice-wrap[hidden]{display:none}
 #vGrabar .voice-wrap::before,#vGrabar .voice-wrap::after{display:none}
 .voice-wrap>label{display:block;font-size:12px;font-weight:500;margin-bottom:9px;color:#626262}
@@ -45,7 +45,7 @@ body{font-family:Roboto,Arial,sans-serif}
 .bb{background:#111;color:#fff}.bg2{background:#fff;color:#111;border:1px solid #bbb}.br{background:#fff;border-color:#bbb;color:#8b2828}
 .toast{max-width:calc(100vw - 32px);white-space:normal;width:max-content;text-align:center;line-height:1.4;border-radius:5px;bottom:104px}
 button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #9c6400!important;outline-offset:5px!important}
-@media(min-width:700px){#vGrabar .capture-brand{top:13dvh}#vGrabar .home-logo{width:102px}.spl-logo{width:166px}#vGrabar .capture-center{top:39%}.voice-wave-idle{width:48px;height:48px}#vGrabar .voice-wrap{top:calc(39% + 145px)}}
-@media(max-height:700px){#vGrabar.capture-open .capture-brand{top:6dvh}#vGrabar.capture-open .capture-center{top:21%}#vGrabar.capture-open .voice-wrap{top:calc(21% + 142px)}#vGrabar .home-logo{width:82px}#vGrabar .home-nav{height:75px;padding-bottom:10px}.sh{max-height:95dvh}}
-@media(max-height:480px){#vGrabar.capture-open{min-height:510px}#vGrabar.capture-open .capture-brand{display:none}#vGrabar.capture-open .capture-center{top:25px}#vGrabar.capture-open .voice-wrap{top:170px}.home-nav{position:absolute!important}}
+@media(min-width:700px){#vGrabar .capture-brand{top:13dvh}#vGrabar .home-logo{width:102px}.spl-logo{width:166px}#vGrabar .capture-center{top:39%}.voice-wave-idle{width:48px;height:48px}#vGrabar .voice-wrap{top:calc(39% + 166px)}}
+@media(max-height:700px){#vGrabar.capture-open .capture-brand{top:6dvh}#vGrabar.capture-open .capture-center{top:21%}#vGrabar.capture-open .voice-wrap{top:calc(21% + 162px)}#vGrabar .home-logo{width:82px}#vGrabar .home-nav{height:75px;padding-bottom:10px}.sh{max-height:95dvh}}
+@media(max-height:480px){#vGrabar.capture-open{min-height:510px}#vGrabar.capture-open .capture-brand{display:none}#vGrabar.capture-open .capture-center{top:25px}#vGrabar.capture-open .voice-wrap{top:187px}.home-nav{position:absolute!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}

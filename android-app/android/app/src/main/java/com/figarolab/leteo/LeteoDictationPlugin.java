@@ -7,6 +7,7 @@ import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.view.HapticFeedbackConstants;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
@@ -30,6 +31,15 @@ import org.vosk.Recognizer;
     @Permission(strings = { Manifest.permission.RECORD_AUDIO }, alias = "microphone")
 })
 public class LeteoDictationPlugin extends Plugin {
+    @PluginMethod
+    public void tap(PluginCall call) {
+        main.post(() -> {
+            getActivity().getWindow().getDecorView()
+                .performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            call.resolve();
+        });
+    }
+
     private static final int SAMPLE_RATE = 16000;
     private static final int CHUNK_SAMPLES = 1600;
     private final Handler main = new Handler(Looper.getMainLooper());

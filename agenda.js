@@ -121,9 +121,9 @@
   }
   function reminders(date,instant,now){
     const notices=[
-      {kind:'day-before',label:'Día anterior · 20:00',at:resolve(dayAdd(date,-1),'20:00').instant},
-      {kind:'same-day-morning',label:'Ese día · 09:00',at:resolve(date,'09:00').instant},
-      {kind:'one-hour-before',label:'Una hora antes',at:new Date(Date.parse(instant)-3600000).toISOString()}
+      {kind:'day-before',label:'Día anterior · 21:00',at:resolve(dayAdd(date,-1),'21:00').instant},
+      {kind:'one-hour-before',label:'Una hora antes',at:new Date(Date.parse(instant)-3600000).toISOString()},
+      {kind:'fifteen-minutes-before',label:'15 minutos antes',at:new Date(Date.parse(instant)-900000).toISOString()}
     ];
     return notices.map(r=>({...r,sent:false,previewOnly:true,status:Date.parse(r.at)>=Date.parse(instant)?'after-event':Date.parse(r.at)<=Date.parse(now)?'omitted-past':'prepared'}));
   }
@@ -145,5 +145,5 @@
     return {ok:true,agenda};
   }
   function duplicate(items,agenda,excludeId){return items.find(i=>i.id!==excludeId&&i.agenda&&i.agenda.status!=='cancelled'&&i.agenda.fingerprint===agenda.fingerprint);}
-  return {zone,parse,prepare,resolve,parts,dayAdd,duplicate,namedDatePattern,timePattern};
+  return {zone,parse,prepare,resolve,parts,dayAdd,reminders,duplicate,namedDatePattern,timePattern};
 });

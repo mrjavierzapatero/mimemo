@@ -110,4 +110,7 @@ function stop(discard = false) {
   return stopping;
 }
 
-window.LeteoNativeSpeech = { native, start, stop };
+window.LeteoNativeSpeech = {
+  native, start, stop,
+  tap: () => { if (native) Dictation.tap().catch(() => {}); }
+};

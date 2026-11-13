@@ -123,9 +123,9 @@
       return timed;
     }
     if(fields.date<today(now)&&recurrence!=='yearly')return {ok:false,errors:['La fecha está en el pasado. Revisa la fecha.']};
-    const before=A.resolve(A.dayAdd(fields.date,-1),'20:00').instant,morning=A.resolve(fields.date,'09:00').instant;
+    const before=A.resolve(A.dayAdd(fields.date,-1),'21:00').instant;
     const pending=(kind,label,at)=>({kind,label,at,sent:false,previewOnly:true,status:at?(Date.parse(at)>Date.parse(now)?'prepared':'omitted-past'):'needs-time'});
-    const agenda={schemaVersion:2,title:title.slice(0,80),date:fields.date,time:'',allDay:true,location:String(fields.location||'').trim().slice(0,160),recurrence,timeZone:A.zone,status:'confirmed',deliveryMode:'preview-only',instant:null,occurrences:[{date:fields.date,instant:null,reminders:[pending('day-before','Día anterior · 20:00',before),pending('same-day-morning','Ese día · 09:00',morning),pending('one-hour-before','Una hora antes',null)]}],confirmedAt:now};
+    const agenda={schemaVersion:2,title:title.slice(0,80),date:fields.date,time:'',allDay:true,location:String(fields.location||'').trim().slice(0,160),recurrence,timeZone:A.zone,status:'confirmed',deliveryMode:'preview-only',instant:null,occurrences:[{date:fields.date,instant:null,reminders:[pending('day-before','Día anterior · 21:00',before),pending('one-hour-before','Una hora antes',null),pending('fifteen-minutes-before','15 minutos antes',null)]}],confirmedAt:now};
     agenda.fingerprint=JSON.stringify([fold(agenda.title),agenda.date,'',recurrence,true]);
     return {ok:true,agenda};
   }

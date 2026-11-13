@@ -1,3 +1,5 @@
+import Agenda from '../../agenda.js';
+
 const zone = 'Europe/Madrid';
 export const alertChannelId = 'leteo-alerts-v2';
 const partsFormat = new Intl.DateTimeFormat('en-GB', {
@@ -40,7 +42,9 @@ export function planNotifications(item, now = new Date()) {
   const eventLabel = recurring
     ? (agenda.time ? `Cita a las ${agenda.time}` : 'Cita de día completo')
     : [agenda.date, agenda.time].filter(Boolean).join(' · ');
-  return first.reminders.flatMap(reminder => {
+  const instant = agenda.time && Agenda.resolve(agenda.date, agenda.time).instant;
+  const reminders = instant ? Agenda.reminders(agenda.date, instant, now) : first.reminders;
+  return reminders.flatMap(reminder => {
     if (!reminder.at || !reminder.kind || reminder.status === 'after-event') return [];
     const schedule = recurring
       ? repeatSchedule(agenda.recurrence, reminder.at)
@@ -57,12 +61,12 @@ export function planNotifications(item, now = new Date()) {
       foreground: true,
       isExactNotification: true,
       isExactMandatory: true,
-      extra: { leteo: true, itemId: item.id, kind: reminder.kind, fingerprint: agenda.fingerprint, channelId: alertChannelId }
+      extra: { leteo: true, itemId: item.id, kind: reminder.kind, fingerprint: agenda.fingerprint, channelId: alertChannelId, at: reminder.at }
     }];
   });
 }
 
 export function notificationIds(item) {
-  return ['day-before', 'same-day-morning', 'one-hour-before']
+  return ['day-before', 'same-day-morning', 'one-hour-before', 'fifteen-minutes-before']
     .map(kind => ({ id: notificationId(item.id, kind) }));
 }
