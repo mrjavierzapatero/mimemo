@@ -57,8 +57,8 @@
   const alertMessages={
     'notification-permission':'Permite las notificaciones de Leteo en Ajustes.',
     'exact-alarm-permission':'Permite «Alarmas y recordatorios» para Leteo en Ajustes.',
-    'channel-blocked':'Activa la categoría «Avisos de letheo» en los ajustes de notificaciones.',
-    'channel-silent':'Pon la categoría «Avisos de letheo» en Alerta y elige un sonido.'
+    'channel-blocked':'Activa la categoría «Avisos de Leteo» en los ajustes de notificaciones.',
+    'channel-silent':'Pon la categoría «Avisos de Leteo» en Alerta y elige un sonido.'
   };
   let alertIssue='';
   function updateAlertControls(){

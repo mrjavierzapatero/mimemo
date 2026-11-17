@@ -21,7 +21,7 @@ async function ensureReady(request = false) {
   if (!channelReady) {
     await LocalNotifications.createChannel({
       id: alertChannelId,
-      name: 'Avisos de letheo',
+      name: 'Avisos de Leteo',
       description: 'Recordatorios de las citas guardadas en Casa',
       importance: 4,
       sound: 'leteo_notice.wav',
@@ -100,7 +100,7 @@ async function testSound() {
   if (!ready.ok) return ready;
   const result = await LocalNotifications.schedule({ notifications: [{
     id: testNotificationId,
-    title: 'Prueba de sonido de letheo',
+    title: 'Prueba de sonido de Leteo',
     body: 'Este es el tono de tus avisos de cita.',
     channelId: alertChannelId,
     foreground: true,

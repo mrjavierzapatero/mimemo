@@ -1,6 +1,6 @@
 {
-  "name": "letheo",
-  "short_name": "letheo",
+  "name": "Leteo",
+  "short_name": "Leteo",
   "description": "Dicta una cita, revísala y recíbela como aviso en tu teléfono.",
   "start_url": "./index.html",
   "display": "standalone",
