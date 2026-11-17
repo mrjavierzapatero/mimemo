@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=leteo-20261108">
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=leteo-20261108">
   <title>letheo</title>
-  <link rel="stylesheet" href="calendar.css?v=20261113-v10">
+  <link rel="stylesheet" href="calendar.css?v=20261117-v11">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -313,7 +313,7 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .proc-txt{color:#fff;font-size:15px;font-weight:500;}
   </style>
-  <link rel="stylesheet" href="branding.css?v=20261113-v10">
+  <link rel="stylesheet" href="branding.css?v=20261117-v11">
 </head>
 <body>
 
@@ -340,7 +340,7 @@
   <div class="view active" id="vGrabar">
     <header class="capture-brand"><img class="home-logo" src="assets/branding/leteo-yellow.svg" alt="Leteo"></header>
     <div class="capture-center">
-      <button class="rec-btn" id="recBtn" type="button" onclick="toggleMic()" aria-label="No olvidar · iniciar dictado" aria-pressed="false">
+      <button class="rec-btn" id="recBtn" type="button" aria-label="No olvidar · mantén pulsado para grabar" aria-pressed="false">
         <span class="wave-stage"><svg class="voice-wave voice-wave-idle" aria-hidden="true" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" fill="#ffbc05"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg><svg class="voice-wave voice-wave-recording" id="recordingWave" aria-hidden="true" viewBox="0 0 360 104" xmlns="http://www.w3.org/2000/svg"><path fill="#ffbc05"/><path fill="#f6a514"/><path fill="#fbad2c"/></svg></span>
         <span class="g-lbl" id="recLbl" aria-live="polite">No olvidar</span>
       </button>
@@ -560,8 +560,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="agenda.js?v=20261113-v10"></script>
-<script src="waveform.js?v=20261113-v10"></script>
+<script src="agenda.js?v=20261117-v11"></script>
+<script src="waveform.js?v=20261117-v11"></script>
 <script>
 'use strict';
 // ── CONFIG ──────────────────────────────────────────────
@@ -677,7 +677,7 @@ function setMicState(on){
   recBtn.classList.toggle('recording', keepListening||on);
   updateCaptureState();
   recBtn.setAttribute('aria-pressed',String(keepListening));
-  recBtn.setAttribute('aria-label',keepListening?'Grabando · detener dictado':'No olvidar · iniciar dictado');
+  recBtn.setAttribute('aria-label',keepListening?'Grabando · suelta para detener':'No olvidar · mantén pulsado para grabar');
   document.getElementById('recLbl').textContent = (keepListening||on) ? 'Grabando' : 'No olvidar';
 }
 
@@ -895,6 +895,46 @@ function toggleMic(){
   document.getElementById('recLbl').textContent='conectando...';
   startSpeechSession(sr);
 }
+
+function bindDictationButton(button){
+  let held=null;
+  function begin(input){
+    if(held!==null||button.disabled||keepListening)return;
+    held=input;
+    toggleMic();
+  }
+  function release(input){
+    if(held===null||held!==input)return;
+    held=null;
+    if(keepListening)stopSpeechRecognition(false);
+  }
+  button.addEventListener('pointerdown',event=>{
+    if(!event.isPrimary||event.button!==0||held!==null||button.disabled||keepListening)return;
+    event.preventDefault();
+    button.setPointerCapture(event.pointerId);
+    begin(event.pointerId);
+  });
+  for(const name of ['pointerup','pointercancel','lostpointercapture']){
+    button.addEventListener(name,event=>release(event.pointerId));
+  }
+  button.addEventListener('contextmenu',event=>event.preventDefault());
+  button.addEventListener('keydown',event=>{
+    if(event.key!==' '&&event.key!=='Enter')return;
+    event.preventDefault();
+    if(!event.repeat)begin(event.key);
+  });
+  button.addEventListener('keyup',event=>release(event.key));
+  button.addEventListener('blur',()=>{if(typeof held==='string')release(held);});
+  window.addEventListener('blur',()=>release(held));
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)release(held);
+  });
+  // Assistive technologies can activate a button without pointer or key events.
+  button.addEventListener('click',event=>{
+    if(event.detail===0&&!event.pointerType&&held===null&&!button.disabled)toggleMic();
+  });
+}
+bindDictationButton(document.getElementById('recBtn'));
 
 async function guardarIdea(asNote){
   var text = document.getElementById('ideaInput').value.trim();
@@ -1581,7 +1621,7 @@ function init(){
 
   runSplash();
   scheduleReminders();
-  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261113-v10').catch(function(){});
+  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261117-v11').catch(function(){});
 }
 init();
 
@@ -1601,7 +1641,7 @@ function normalizeMemory(i){
   return i;
 }
 </script>
-<script src="calendar.js?v=20261113-v10"></script>
-  <script src="calendar-ui.js?v=20261113-v10"></script>
+<script src="calendar.js?v=20261117-v11"></script>
+  <script src="calendar-ui.js?v=20261117-v11"></script>
 </body>
 </html>

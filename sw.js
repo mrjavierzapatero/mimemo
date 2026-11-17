@@ -1,13 +1,13 @@
-const CACHE = 'leteo-v19-press-and-alerts';
+const CACHE = 'leteo-v20-hold-to-record';
 const ASSETS = [
   './',
   './index.html',
-  './agenda.js?v=20261113-v10',
-  './waveform.js?v=20261113-v10',
-  './calendar.js?v=20261113-v10',
-  './calendar-ui.js?v=20261113-v10',
-  './calendar.css?v=20261113-v10',
-  './branding.css?v=20261113-v10',
+  './agenda.js?v=20261117-v11',
+  './waveform.js?v=20261117-v11',
+  './calendar.js?v=20261117-v11',
+  './calendar-ui.js?v=20261117-v11',
+  './calendar.css?v=20261117-v11',
+  './branding.css?v=20261117-v11',
   './manifest.json',
   './assets/icons/icon-192.png?v=leteo-20261108',
   './assets/icons/icon-512.png?v=leteo-20261108',

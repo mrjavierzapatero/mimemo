@@ -10,7 +10,7 @@ body{font-family:Roboto,Arial,sans-serif}
 #vGrabar .capture-brand{position:absolute;top:calc(13.5dvh + env(safe-area-inset-top,0px));left:0;right:0;display:flex;justify-content:center;transition:opacity .25s ease}
 #vGrabar .home-logo{width:90px;opacity:1;filter:none;margin:0}
 #vGrabar .capture-center{position:absolute;top:41%;left:0;right:0;display:flex;align-items:center;flex-direction:column}
-#vGrabar .rec-btn{--mic-yellow:#ffbc05;box-sizing:border-box;margin:0;border:1px solid var(--mic-yellow);border-radius:50%;background:none;box-shadow:none;width:144px;height:144px;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:center;animation:none;padding:0;touch-action:manipulation}
+#vGrabar .rec-btn{--mic-yellow:#ffbc05;box-sizing:border-box;margin:0;border:1px solid var(--mic-yellow);border-radius:50%;background:none;box-shadow:none;width:144px;height:144px;display:flex;flex-direction:column;align-items:center;gap:10px;justify-content:center;animation:none;padding:0;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #vGrabar.is-recording .rec-btn{border-color:transparent;border-radius:0;width:min(88vw,400px);gap:14px}
 #vGrabar .rec-btn::before{display:none}
 #vGrabar .rec-btn:active{transform:scale(.98);background:#f5f5f5}
