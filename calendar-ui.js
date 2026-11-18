@@ -55,6 +55,7 @@
   $('calHelp').insertAdjacentHTML('afterend','<div class="cal-alert-controls" id="calAlertControls" hidden><p id="calAlertStatus" role="status"></p><button type="button" id="calActivateAlerts">Activar avisos</button><button type="button" id="calTestSound">Probar sonido</button></div>');
   const nativeAlerts=()=>window.LeteoNativeAlerts?.native?window.LeteoNativeAlerts:null;
   const alertMessages={
+    'alarm-volume':'El volumen de alarmas está a cero. Súbelo en Ajustes → Sonidos y vibración → Volumen.',
     'notification-permission':'Permite las notificaciones de Leteo en Ajustes.',
     'exact-alarm-permission':'Permite «Alarmas y recordatorios» para Leteo en Ajustes.',
     'channel-blocked':'Activa la categoría «Avisos de Leteo» en los ajustes de notificaciones.',

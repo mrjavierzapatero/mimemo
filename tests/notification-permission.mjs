@@ -15,7 +15,7 @@ const plugin = {
     bundle.onResolve({ filter: /^@capacitor\// }, args => ({ path: args.path, namespace: 'mock' }));
     bundle.onLoad({ filter: /.*/, namespace: 'mock' }, args => ({
       contents: args.path === '@capacitor/core'
-        ? 'export const Capacitor = globalThis.mockCapacitor;'
+        ? 'export const Capacitor = globalThis.mockCapacitor; export const registerPlugin = () => globalThis.mockAlarmAudio;'
         : 'export const LocalNotifications = globalThis.mockNotifications;',
       loader: 'js'
     }));
@@ -25,7 +25,8 @@ const result = await build({
   entryPoints: [path.resolve(import.meta.dirname, '../android-app/src/notifications.mjs')],
   bundle: true, format: 'iife', platform: 'browser', write: false, plugins: [plugin]
 });
-const context = { window: {}, mockNotifications: notifications,
+let alarmVolume = 1;
+const context = { window: {}, mockNotifications: notifications, mockAlarmAudio: { checkAudio: async () => ({ volume: alarmVolume }) },
   mockCapacitor: { isNativePlatform: () => true, getPlatform: () => 'android' } };
 vm.runInNewContext(result.outputFiles[0].text, context);
 const outcome = await context.window.LeteoNativeAlerts.scheduleItem({ id: 'existing-alarm' });
@@ -44,6 +45,10 @@ assert.equal((await alerts.testSound()).reason, 'channel-silent');
 assert.deepEqual(calls, [], 'A blocked or silent channel must not claim a successful sound test');
 
 channel.sound = 'android.resource://com.figarolab.leteo/raw/leteo_notice';
+alarmVolume = 0;
+assert.equal((await alerts.testSound()).reason, 'alarm-volume');
+assert.deepEqual(calls, [], 'A muted alarm stream must not claim a successful sound test');
+alarmVolume = 1;
 const item = { id: 'fixture', agenda: {
   title: 'Piano', recurrence: 'weekly', time: '15:45', fingerprint: 'same',
   occurrences: [{ reminders: [{ kind: 'one-hour-before', at: '2026-11-12T13:45:00.000Z' }] }]

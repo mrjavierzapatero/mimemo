@@ -1,8 +1,9 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { alertChannelId, planNotifications, notificationIds } from './plan-notifications.mjs';
 
 const native = Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+const AlarmAudio = registerPlugin('LeteoAlarm');
 const testNotificationId = -710004;
 let channelReady = false;
 
@@ -36,6 +37,8 @@ async function ensureReady(request = false) {
   if (channel.importance < 3 || !channel.sound || channel.sound === 'null') {
     return { ok: false, reason: 'channel-silent' };
   }
+  const audio = await AlarmAudio.checkAudio();
+  if (audio.volume === 0) return { ok: false, reason: 'alarm-volume' };
   return { ok: true };
 }
 
