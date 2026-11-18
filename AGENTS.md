@@ -1,0 +1,3 @@
+## Protección transversal de secretos (23/10/2026)
+
+Aplicar `.figaro-security/README.md` al cambiar credenciales, variables públicas, código cliente, CI o preparar una entrega. Ejecutar los controles del índice, push y artefactos; no omitirlos ni autorizar una excepción global para conseguir verde. Separar claves públicas legítimas de secretos administrativos. La gestión de permisos y separación de entornos requiere evidencia del proveedor: no llamar implantado a `pending-provider-verification`. Ante una exposición real, revocar/rotar con autorización e inventario de consumidores; borrar el archivo no basta. Nunca imprimir valores de secretos ni probar claves contra proveedores para validar un hallazgo.

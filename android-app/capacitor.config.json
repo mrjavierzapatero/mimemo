@@ -1,0 +1,12 @@
+{
+  "appId": "com.figarolab.leteo",
+  "appName": "Leteo",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_leteo_notification",
+      "iconColor": "#FBAF2C",
+      "sound": "leteo_notice.wav"
+    }
+  }
+}
