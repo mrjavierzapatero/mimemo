@@ -101,7 +101,7 @@ async function testSound() {
   const result = await LocalNotifications.schedule({ notifications: [{
     id: testNotificationId,
     title: 'Prueba de sonido de Leteo',
-    body: 'Este es el tono de tus avisos de cita.',
+    body: 'Sonará durante un minuto. Toca «Detener sonido» para pararlo.',
     channelId: alertChannelId,
     foreground: true,
     isExactNotification: true,

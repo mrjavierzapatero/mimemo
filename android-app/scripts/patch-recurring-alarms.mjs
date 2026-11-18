@@ -28,8 +28,33 @@ const fixed = `        val allowWhileIdle = storedNotification?.getJSObject("sch
                 alarmManager.set(AlarmManager.RTC, trigger, pendingIntent)
             }
         }`;
-const source = readFileSync(receiver, 'utf8');
+let source = readFileSync(receiver, 'utf8');
 if (!source.includes(fixed)) {
   if (!source.includes(original)) throw new Error('Revisar la reprogramación de alarmas de la versión instalada de Capacitor.');
-  writeFileSync(receiver, source.replace(original, fixed));
+  source = source.replace(original, fixed);
 }
+
+// Deliver Leteo reminders through its alarm audio service, including with the
+// WebView closed. Keep Capacitor's notification as a fallback if startup fails.
+const delivery = '        notificationManager.notify(id, notification)';
+const alarmDelivery = `        var alarmStarted = false
+        if (notificationJson?.getJSObject("extra")?.getBoolean("leteo", false) == true) {
+            val alarm = Intent().setClassName(context.packageName, context.packageName + ".LeteoAlarmService")
+                .setAction("com.figarolab.leteo.RING")
+                .putExtra("notificationId", id)
+                .putExtra("title", notificationJson.getString("title"))
+                .putExtra("body", notificationJson.getString("body"))
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(alarm)
+                else context.startService(alarm)
+                alarmStarted = true
+            } catch (error: RuntimeException) {
+                Logger.error(Logger.tags("LN"), "Unable to start Leteo alarm audio", error)
+            }
+        }
+        if (!alarmStarted) notificationManager.notify(id, notification)`;
+if (!source.includes(alarmDelivery)) {
+  if (!source.includes(delivery)) throw new Error('Revisar la entrega de alarmas de Capacitor.');
+  source = source.replace(delivery, alarmDelivery);
+}
+writeFileSync(receiver, source);

@@ -315,7 +315,7 @@
     const button=event.currentTarget;button.disabled=true;
     try{
       const result=await native.testSound();
-      toast(result.ok?'Prueba programada para dentro de 15 segundos. Puedes bloquear el móvil.':
+      toast(result.ok?'Prueba en 15 segundos: sonará hasta un minuto. Bloquea el móvil para comprobarla.':
         alertMessages[result.reason]||'No se pudo programar la prueba de sonido.');
     }catch(error){toast('No se pudo programar la prueba de sonido.');}
     finally{button.disabled=false;}
