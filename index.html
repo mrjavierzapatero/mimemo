@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=leteo-20261108">
   <link rel="icon" type="image/png" href="assets/icons/icon-192.png?v=leteo-20261108">
   <title>Leteo</title>
-  <link rel="stylesheet" href="calendar.css?v=20261117-v12">
+  <link rel="stylesheet" href="calendar.css?v=20261118-v13">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -313,7 +313,7 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .proc-txt{color:#fff;font-size:15px;font-weight:500;}
   </style>
-  <link rel="stylesheet" href="branding.css?v=20261117-v12">
+  <link rel="stylesheet" href="branding.css?v=20261118-v13">
 </head>
 <body>
 
@@ -343,6 +343,7 @@
       <button class="rec-btn" id="recBtn" type="button" aria-label="No olvidar · mantén pulsado para grabar" aria-pressed="false">
         <span class="wave-stage"><svg class="voice-wave voice-wave-idle" aria-hidden="true" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" fill="#ffbc05"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg><svg class="voice-wave voice-wave-recording" id="recordingWave" aria-hidden="true" viewBox="0 0 360 104" xmlns="http://www.w3.org/2000/svg"><path fill="#ffbc05"/><path fill="#f6a514"/><path fill="#fbad2c"/></svg></span>
         <span class="g-lbl" id="recLbl" aria-live="polite">No olvidar</span>
+        <span class="rec-hint" aria-hidden="true">Suelta para terminar</span>
       </button>
     </div>
     <div class="voice-wrap" id="captureTranscript" hidden>
@@ -560,8 +561,8 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="agenda.js?v=20261117-v12"></script>
-<script src="waveform.js?v=20261117-v12"></script>
+<script src="agenda.js?v=20261118-v13"></script>
+<script src="waveform.js?v=20261118-v13"></script>
 <script>
 'use strict';
 // ── CONFIG ──────────────────────────────────────────────
@@ -662,14 +663,15 @@ function closeCaptureText(){
 
 function updateCaptureState(){
   var active=keepListening||isListening,hasText=!!document.getElementById('ideaInput').value.trim();
-  document.getElementById('vGrabar').classList.toggle('is-recording',active);
+  document.getElementById('vGrabar').classList.toggle('is-recording',isListening);
+  document.getElementById('vGrabar').classList.toggle('is-preparing',keepListening&&!isListening);
   if(active||hasText){document.getElementById('captureTranscript').hidden=false;document.getElementById('vGrabar').classList.add('capture-open');}
 }
 
 
 function setMicState(on){
   isListening = on;
-  waveController?.setActive(keepListening||on);
+  waveController?.setActive(on);
   if(!on)waveController?.setLevel(0);
   var micBtn = document.getElementById('micBtn');
   if(micBtn) micBtn.classList.toggle('listening', on);
@@ -901,11 +903,13 @@ function bindDictationButton(button){
   function begin(input){
     if(held!==null||button.disabled||keepListening)return;
     held=input;
+    button.classList.add('is-held');
     toggleMic();
   }
   function release(input){
     if(held===null||held!==input)return;
     held=null;
+    button.classList.remove('is-held');
     if(keepListening)stopSpeechRecognition(false);
   }
   button.addEventListener('pointerdown',event=>{
@@ -1621,7 +1625,7 @@ function init(){
 
   runSplash();
   scheduleReminders();
-  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261117-v12').catch(function(){});
+  if(navigator.serviceWorker) navigator.serviceWorker.register('sw.js?v=20261118-v13').catch(function(){});
 }
 init();
 
@@ -1641,7 +1645,7 @@ function normalizeMemory(i){
   return i;
 }
 </script>
-<script src="calendar.js?v=20261117-v12"></script>
-  <script src="calendar-ui.js?v=20261117-v12"></script>
+<script src="calendar.js?v=20261118-v13"></script>
+  <script src="calendar-ui.js?v=20261118-v13"></script>
 </body>
 </html>

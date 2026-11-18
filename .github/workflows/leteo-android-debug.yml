@@ -35,6 +35,7 @@ jobs:
           node tests/notification-permission.mjs
           node tests/native-speech-bridge.mjs
           node tests/native-speech-review.cjs
+          node tests/hold-recording.cjs
       - name: Bundle the local web view and brand assets
         working-directory: android-app
         run: |

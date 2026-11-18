@@ -4,6 +4,10 @@ import android.Manifest;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Build;
+import android.os.Vibrator;
+import android.os.VibrationEffect;
+import android.media.AudioAttributes;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
@@ -34,8 +38,15 @@ public class LeteoDictationPlugin extends Plugin {
     @PluginMethod
     public void tap(PluginCall call) {
         main.post(() -> {
-            getActivity().getWindow().getDecorView()
-                .performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            Vibrator vibrator = getContext().getSystemService(Vibrator.class);
+            if (Build.VERSION.SDK_INT >= 29 && vibrator != null && vibrator.hasVibrator()) {
+                // A hardware-tuned button click, independent of keyboard feedback.
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK),
+                    new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).build());
+            } else {
+                getActivity().getWindow().getDecorView()
+                    .performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK);
+            }
             call.resolve();
         });
     }
